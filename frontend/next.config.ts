@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  distDir: process.env.MORPH_REVIEW === "1" ? ".next-review" : ".next",
   outputFileTracingRoot: process.cwd(),
   experimental: { proxyClientMaxBodySize: "24mb" },
   async rewrites() {
