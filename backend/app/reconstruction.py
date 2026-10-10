@@ -17,10 +17,11 @@ import trimesh
 
 from .config import MODELS
 from .images import InvalidPhoto
+from .measurements import estimate_from_profiles, fit_measurement_targets
 
 MODEL_PATH = MODELS / "pose_landmarker_full.task"
 TEMPLATE_PATH = MODELS / "body-template.obj"
-ENGINE = "mediapipe-silhouette-template-v1"
+ENGINE = "mediapipe-two-photo-fit-v2"
 
 _detector = None
 _detector_lock = threading.Lock()
@@ -99,6 +100,8 @@ def observe(image: np.ndarray, detector, name: str) -> Observation:
     sizes = np.bincount(components.ravel()); sizes[0] = 0
     mask = binary_fill_holes(components == int(sizes.argmax()))
     yy, xx = np.where(mask)
+    if not len(yy):
+        raise InvalidPhoto(f"Ảnh {name}: không tìm thấy cơ thể.")
     top, bottom = int(yy.min()), int(yy.max())
     h, w = mask.shape
     if bottom - top < h * 0.42:
@@ -116,7 +119,33 @@ def observe(image: np.ndarray, detector, name: str) -> Observation:
             raise InvalidPhoto("Ảnh chính diện: giữ vai ngang và camera thẳng khi chụp.")
         if max(points[27, 1], points[28, 1]) - np.mean(points[[11, 12], 1]) < (bottom - top) * 0.55:
             raise InvalidPhoto("Hãy đứng thẳng toàn thân; demo chưa hỗ trợ tư thế ngồi hoặc co chân.")
+    else:
+        left = np.mean(visibility[[11, 23, 25, 27]])
+        right = np.mean(visibility[[12, 24, 26, 28]])
+        if max(left, right) < .55 or max(visibility[27], visibility[28]) < .35:
+            raise InvalidPhoto("Ảnh nghiêng: cần thấy rõ vai, hông, đầu gối và ít nhất một bàn chân.")
+    if not np.isfinite(points).all():
+        raise InvalidPhoto("Không đọc được các mốc cơ thể. Hãy chụp lại.")
     return Observation(mask, points, visibility, top, bottom, float(bottom - top))
+
+
+def capture_feedback(image: np.ndarray, view: str) -> dict:
+    """Check sampled camera frames with actual pose detection, not pixel stillness."""
+    try:
+        detector = get_detector()
+        with _detector_lock:
+            obs = observe(image, detector, "chính diện" if view == "front" else "góc nghiêng")
+        shoulder_ratio = abs(obs.points[11, 0] - obs.points[12, 0]) / obs.height
+        if view == "front" and shoulder_ratio < .12:
+            raise InvalidPhoto("Hướng cả hai vai về camera để chụp chính diện.")
+        if view == "side" and shoulder_ratio > .11:
+            raise InvalidPhoto("Xoay người thêm, gần 90° so với camera.")
+        torso_profile(obs)
+        h, w = image.shape[:2]
+        landmarks = [[round(float(p[0] / w), 4), round(float(p[1] / h), 4), round(float(v), 3)] for p, v in zip(obs.points, obs.visibility)]
+        return {"ready": True, "message": "Đã nhận diện toàn thân và góc chụp. Giữ yên.", "landmarks": landmarks, "view": view}
+    except InvalidPhoto as exc:
+        return {"ready": False, "message": str(exc), "landmarks": [], "view": view}
 
 
 def center_run_width(mask: np.ndarray, y: float, center: float) -> float:
@@ -211,119 +240,7 @@ def deform_template(mesh: trimesh.Trimesh, fractions: np.ndarray, front_width: n
     return mesh
 
 
-def calculate_measurements(mesh: trimesh.Trimesh, height_cm: float) -> dict[str, float]:
-    """Calculate estimated anatomical circumferences and lengths in cm from the 3D mesh."""
-    h_m = height_cm / 100.0
-
-    def slice_contour_perimeter(y_val: float, max_half_width: float) -> float:
-        lines = trimesh.intersections.mesh_plane(mesh, plane_normal=[0, 1, 0], plane_origin=[0, y_val, 0])
-        if len(lines) == 0:
-            return 0.0
-        centers_x = np.abs(lines.mean(axis=1)[:, 0])
-        torso_lines = lines[centers_x <= max_half_width]
-        if len(torso_lines) == 0:
-            return 0.0
-        diff = torso_lines[:, 0, :] - torso_lines[:, 1, :]
-        return float(np.sum(np.sqrt((diff ** 2).sum(axis=-1)))) * 100.0
-
-    # 1. Chest: peak of ribcage / chest area (y ~ 0.69 to 0.74 * height)
-    chest_levels = np.linspace(0.69, 0.74, 6) * h_m
-    chest_perims = [slice_contour_perimeter(y, 0.22 * h_m) for y in chest_levels]
-    chest_cm = round(max(chest_perims) if chest_perims else 0.0, 1)
-
-    # 2. Waist: narrowest part between ribcage and pelvis (y ~ 0.56 to 0.63 * height)
-    waist_levels = np.linspace(0.56, 0.63, 8) * h_m
-    waist_perims = [slice_contour_perimeter(y, 0.20 * h_m) for y in waist_levels]
-    valid_waist = [p for p in waist_perims if p > 0]
-    waist_cm = round(min(valid_waist) if valid_waist else 0.0, 1)
-
-    # 3. Hip: widest part around pelvis and buttocks (y ~ 0.47 to 0.54 * height)
-    hip_levels = np.linspace(0.47, 0.54, 8) * h_m
-    hip_perims = [slice_contour_perimeter(y, 0.26 * h_m) for y in hip_levels]
-    hip_cm = round(max(hip_perims) if hip_perims else 0.0, 1)
-
-    # 4. Shoulder width: span at shoulder level
-    shoulder_lines = trimesh.intersections.mesh_plane(mesh, plane_normal=[0, 1, 0], plane_origin=[0, 0.805 * h_m, 0])
-    if len(shoulder_lines) > 0:
-        shoulder_pts = shoulder_lines.reshape(-1, 3)
-        shoulder_width_cm = round(float(np.ptp(shoulder_pts[:, 0])) * 100.0, 1)
-    else:
-        shoulder_width_cm = round(0.24 * height_cm, 1)
-
-    # 5. Inseam: crotch to floor
-    inseam_cm = round(0.46 * height_cm, 1)
-
-    return {
-        "height_cm": round(height_cm, 1),
-        "chest_cm": chest_cm,
-        "waist_cm": waist_cm,
-        "hip_cm": hip_cm,
-        "shoulder_width_cm": shoulder_width_cm,
-        "inseam_cm": inseam_cm,
-    }
-
-
-def analyze_body_profile(measurements: dict[str, float]) -> dict[str, str]:
-    """Classify body silhouette shape and recommend clothing sizes."""
-    chest = measurements.get("chest_cm", 90.0)
-    waist = measurements.get("waist_cm", 75.0)
-    hip = measurements.get("hip_cm", 95.0)
-    height = measurements.get("height_cm", 170.0)
-
-    # 1. Body shape classification
-    if waist <= chest * 0.75 and waist <= hip * 0.75 and abs(chest - hip) <= 6.0:
-        shape = "Đồng hồ cát"
-        desc = "Cân đối lý tưởng. Phù hợp trang phục ôm dáng, nhấn eo hoặc kèm thắt lưng tôn dáng."
-    elif hip >= chest + 4.5 and hip > waist * 1.15:
-        shape = "Dáng quả lê"
-        desc = "Hông và đùi nở nang. Phù hợp áo sáng màu, cổ chữ V, váy chữ A hoặc quần ống suông."
-    elif chest >= hip + 4.5:
-        shape = "Tam giác ngược"
-        desc = "Khung vai và ngực nở thể thao. Phù hợp quần ống rộng, váy xòe, tránh chi tiết đệm vai."
-    elif waist >= chest * 0.88 or waist >= hip * 0.88:
-        shape = "Dáng quả táo"
-        desc = "Vòng bụng đầy đặn. Phù hợp trang phục cổ sâu, chất liệu rũ nhẹ, đầm suông hoặc áo form rộng."
-    else:
-        shape = "Dáng chữ nhật"
-        desc = "Vóc dáng thanh thoát, đều đặn. Phù hợp tạo điểm nhấn eo, croptop hoặc phối đồ layer nhiều lớp."
-
-    # 2. Asian / VN Top Size Recommendation
-    if height < 163 or chest < 86:
-        top_size = "S"
-    elif (height < 172 and chest < 93) or chest < 91:
-        top_size = "M"
-    elif (height < 179 and chest < 100) or chest < 98:
-        top_size = "L"
-    elif (height < 185 and chest < 107) or chest < 105:
-        top_size = "XL"
-    else:
-        top_size = "XXL"
-
-    # 3. Bottom Size (Waist in inches: 1 inch = 2.54 cm)
-    waist_inch = waist / 2.54
-    if waist_inch < 28.5:
-        bottom_size = "28 - 29"
-    elif waist_inch < 30.5:
-        bottom_size = "30"
-    elif waist_inch < 32.0:
-        bottom_size = "31 - 32"
-    elif waist_inch < 33.5:
-        bottom_size = "33"
-    elif waist_inch < 35.5:
-        bottom_size = "34 - 35"
-    else:
-        bottom_size = "36+"
-
-    return {
-        "shape": shape,
-        "shape_description": desc,
-        "top_size": top_size,
-        "bottom_size": bottom_size,
-        "fit_type": "Regular Fit",
-    }
-
-
-def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destination: Path, report: Callable[[str], None]) -> tuple[list[str], dict[str, float], dict[str, str]]:
+def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destination: Path, report: Callable[[str], None]) -> tuple[list[str], dict[str, float | None], dict]:
     report("Đang nhận diện cơ thể trong hai ảnh…")
     detector = get_detector()
     with _detector_lock:
@@ -340,14 +257,15 @@ def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destinati
     _, depths = torso_profile(lateral)
     mesh = deform_template(read_template(), fractions, widths, depths, height_cm)
     report("Đang trích xuất thông số kích thước cơ thể…")
-    measurements = calculate_measurements(mesh, height_cm)
-    report("Đang phân tích dáng người & gợi ý size…")
-    profile = analyze_body_profile(measurements)
+    measurements, targets = estimate_from_profiles(fractions, widths, depths, height_cm, front_shoulders)
+    report("Đang khớp avatar theo các vòng ước lượng…")
+    mesh, profile = fit_measurement_targets(mesh, targets, height_cm)
     report("Đang hoàn thiện file 3D…")
     mesh.export(destination, file_type="glb", include_normals=True)
     warnings = [
         "Phần thân được điều chỉnh theo đường viền hai ảnh trên mẫu cơ thể có sẵn. Đây là hình thể ước lượng, không phải bản sao 3D chính xác.",
-        "Thông số các vòng (ngực, eo, mông) là ước lượng hình học vi phân từ lưới 3D, mang tính tham khảo trực quan, chưa qua kiểm chứng may đo.",
+        "Ngực/eo/mông được ước lượng từ bề rộng và độ sâu hai ảnh với giả định lát cắt elip. Chưa kiểm chứng sai số trên người thật.",
+        "Chiều cao do bạn nhập; rộng vai là khoảng cách hai mốc vai trên ảnh. Chưa đủ cơ sở đo inseam nên không xuất số này.",
         "Đầu, khuôn mặt và bàn tay/chân giữ theo mẫu.",
     ]
     return warnings, measurements, profile

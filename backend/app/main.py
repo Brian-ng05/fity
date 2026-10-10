@@ -6,16 +6,18 @@ from hashlib import sha256
 import logging
 import threading
 import time
+from typing import Literal
 from uuid import uuid4
 
 import numpy as np
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from .config import DATA, MAX_UPLOAD, RESULT_TTL_SECONDS
 from .images import InvalidPhoto, decode_photo
-from .reconstruction import ENGINE, close_detector, readiness, reconstruct
+from .reconstruction import ENGINE, capture_feedback, close_detector, readiness, reconstruct
+from .sizing import SizeChart, recommend_size
 
 logger = logging.getLogger(__name__)
 lock = threading.RLock()
@@ -36,7 +38,7 @@ class Job:
     model_url: str | None = None
     error: str | None = None
     warnings: list[str] = field(default_factory=list)
-    measurements: dict[str, float] = field(default_factory=dict)
+    measurements: dict[str, float | None] = field(default_factory=dict)
     body_profile: dict = field(default_factory=dict)
     elapsed_seconds: float | None = None
 
@@ -59,6 +61,8 @@ def cleanup():
 
 @asynccontextmanager
 async def lifespan(app):
+    global executor
+    executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="morph-scan")
     DATA.mkdir(exist_ok=True, parents=True)
     cleanup()
 
@@ -81,6 +85,27 @@ app = FastAPI(title="MORPH AI Demo", version="0.1.0", lifespan=lifespan)
 def health():
     ready, message = readiness()
     return {"ready": ready, "engine": ENGINE, "message": message, "retention_seconds": RESULT_TTL_SECONDS}
+
+
+@app.post("/api/capture-check")
+async def check_capture(photo: UploadFile = File(...), view: Literal["front", "side"] = Form(...), consent: bool = Form(False)):
+    try:
+        if not consent:
+            raise HTTPException(400, "Cần đồng ý gửi khung hình tới backend để hướng dẫn AI.")
+        with lock:
+            if any(j.status in {"queued", "processing"} for j in jobs.values()):
+                raise HTTPException(429, "Đang dựng hình. Hướng dẫn camera sẽ tiếp tục sau.")
+        data = await photo.read(2 * 1024 * 1024 + 1)
+    finally:
+        await photo.close()
+    if len(data) > 2 * 1024 * 1024:
+        raise HTTPException(413, "Khung hình hướng dẫn tối đa 2 MB.")
+    try:
+        frame = decode_photo(data)
+        result = await asyncio.to_thread(capture_feedback, frame, view)
+    except InvalidPhoto as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
 def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm: float):
@@ -190,6 +215,23 @@ def get_model(key: str):
     if not path.is_file():
         raise HTTPException(404, "Mô hình đã hết hạn.")
     return FileResponse(path, media_type="model/gltf-binary", filename="morph-body.glb", headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/scans/{key}/measurements")
+def download_measurements(key: str):
+    job = get_scan(key)
+    if job["status"] != "completed":
+        raise HTTPException(409, "Chưa có số đo cho phiên này.")
+    return JSONResponse({"schema_version": 1, "unit": "cm", "measurements": job["measurements"], "body_fit": job["body_profile"], "warnings": job["warnings"]},
+                        headers={"Cache-Control": "no-store", "Content-Disposition": 'attachment; filename="morph-measurements.json"'})
+
+
+@app.post("/api/scans/{key}/size-advice")
+def size_advice(key: str, chart: SizeChart):
+    job = get_scan(key)
+    if job["status"] != "completed":
+        raise HTTPException(409, "Cần hoàn thành scan trước khi đối chiếu size.")
+    return JSONResponse(recommend_size(job["measurements"], chart), headers={"Cache-Control": "no-store"})
 
 
 @app.delete("/api/scans/{key}", status_code=204)

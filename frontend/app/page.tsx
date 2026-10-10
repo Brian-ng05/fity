@@ -4,11 +4,12 @@ import dynamic from "next/dynamic";
 import { Component, type ErrorInfo, type ReactNode, useEffect, useRef, useState } from "react";
 import { ArrowRight, Box, Camera, Check, CheckCircle2, Download, Info, LoaderCircle, Maximize, Mouse, RotateCcw, Ruler, ScanLine, ShieldCheck, Sparkles, Sun, Trash2, Upload, X } from "lucide-react";
 import CameraCapture from "../components/CameraCapture";
+import SizeAdvice from "../components/SizeAdvice";
 
 const BodyViewer = dynamic(() => import("../components/BodyViewer"), { ssr: false, loading: () => <div className="viewer-loading"><LoaderCircle className="spin" size={24} /> Đang mở không gian 3D…</div> });
 type Health = { ready: boolean; engine: string; message: string };
-type Measurements = { height_cm?: number; chest_cm?: number; waist_cm?: number; hip_cm?: number; shoulder_width_cm?: number; inseam_cm?: number };
-type BodyProfile = { shape?: string; shape_description?: string; top_size?: string; bottom_size?: string; fit_type?: string };
+type Measurements = { height_cm?: number; chest_cm?: number; waist_cm?: number; hip_cm?: number; shoulder_width_cm?: number; inseam_cm?: number | null };
+type BodyProfile = { fit_status?: string; max_fit_error_cm?: number; note?: string; sections?: {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]}[] };
 type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; stage: string; error?: string; model_url?: string; warnings?: string[]; measurements?: Measurements; body_profile?: BodyProfile; elapsed_seconds?: number };
 type Slot = "front" | "side";
 
@@ -96,7 +97,7 @@ export default function Page() {
   function choose(slot: Slot, file: File | null) {
     if (file) {
       if (/\.(heic|heif)$/i.test(file.name) || /image\/(heic|heif)/i.test(file.type)) {
-        setError("Ảnh HEIC (iPhone) chưa được hỗ trợ trực tiếp. Hãy đổi đuôi/xuất thành JPG hoặc vào Cài đặt > Camera > Định dạng chọn 'Tương thích nhất'.");
+        setError("Ảnh HEIC (iPhone) chưa được hỗ trợ trực tiếp. Hãy xuất/chuyển đổi thành JPG hoặc vào Cài đặt > Camera > Định dạng chọn 'Tương thích nhất'.");
         return;
       }
       if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 10 * 1024 * 1024) {
@@ -108,7 +109,7 @@ export default function Page() {
   }
   async function scan() {
     if (!front || !side || !consent) { setError("Chọn đủ hai ảnh và đồng ý xử lý ảnh trước khi tạo mô hình."); return; }
-    if (Number(height) < 100 || Number(height) > 230) { setError("Chiều cao cần nằm trong khoảng 100–230 cm."); return; }
+    if (!Number.isFinite(Number(height)) || Number(height) < 100 || Number(height) > 230) { setError("Chiều cao cần nằm trong khoảng 100–230 cm."); return; }
     setError(""); setSubmitting(true);
     try {
       if (job) {
@@ -150,54 +151,28 @@ export default function Page() {
           {error && <div className="error-message" role="alert"><Info size={17} /><div>{error}{busy && <button className="inline-link" onClick={() => { setError(""); setPollRetry(n => n + 1); }}>Kiểm tra kết quả</button>}</div></div>}
         </div>
         <div className="result-panel"><div className="viewport" ref={viewport}><div className="viewer-top"><span className="model-label">{complete ? <CheckCircle2 size={15} /> : <Info size={15} />}{complete ? "Kết quả từ ảnh của bạn" : "Mô hình minh họa"}</span><div className="view-modes" aria-label="Chế độ hiển thị"><button className={!wireframe ? "selected" : ""} aria-label="Khối đặc" aria-pressed={!wireframe} onClick={() => setWireframe(false)}><Box size={16} /><span>Khối đặc</span></button><button className={wireframe ? "selected" : ""} aria-label="Khung lưới" aria-pressed={wireframe} onClick={() => setWireframe(true)}><ScanLine size={16} /><span>Khung lưới</span></button></div></div>
-          <ViewerBoundary key={job?.model_url || "sample"}><BodyViewer url={complete ? job.model_url : undefined} wireframe={wireframe} reset={reset} autoRotate={rotation} targetHeightCm={Number(height) || 170} showRings={showRings} measurements={job?.measurements} /></ViewerBoundary>
+          <ViewerBoundary key={job?.model_url || "sample"}><BodyViewer url={complete ? job.model_url : undefined} wireframe={wireframe} reset={reset} autoRotate={rotation} targetHeightCm={complete ? job.measurements?.height_cm : 175} showRings={showRings} sections={complete ? job.body_profile?.sections : undefined} /></ViewerBoundary>
           <div className="viewer-tools"><button className={`icon-button ${showRings ? "selected" : ""}`} onClick={() => setShowRings(!showRings)} title="Vòng đo 3D" aria-label="Bật tắt vòng đo 3D" aria-pressed={showRings}><Ruler size={18} /></button><button className="icon-button" onClick={() => setReset(n => n + 1)} title="Đặt lại góc nhìn" aria-label="Đặt lại góc nhìn"><RotateCcw size={18} /></button><button className={`icon-button ${rotation ? "selected" : ""}`} onClick={() => setRotation(!rotation)} title="Tự xoay" aria-label="Tự xoay mô hình" aria-pressed={rotation}><Box size={18} /></button><button className="icon-button" onClick={() => { if (document.fullscreenElement) void document.exitFullscreen(); else void viewport.current?.requestFullscreen().catch(() => setError("Trình duyệt không hỗ trợ toàn màn hình.")); }} title="Toàn màn hình" aria-label="Toàn màn hình"><Maximize size={18} /></button></div>
           {busy && <div className="processing-overlay" role="status"><div><LoaderCircle size={32} className="spin" /><h3>{job?.stage || "Đang gửi ảnh…"}</h3><p>Giữ trang này mở. Thời gian tùy ảnh và cấu hình máy.</p></div></div>}
           <div className="viewer-bottom"><span><Mouse size={16} />Kéo để xoay · Cuộn để phóng to</span><span className="estimate-note">Hình thể ước lượng</span></div>
         </div><div className="result-footer"><div><ShieldCheck size={17} /><span>Demo hình thể · Chưa được kiểm chứng để may đo</span></div>{complete && <a className="download-button" href={job.model_url} download="morph-body.glb"><Download size={16} />Tải GLB</a>}</div>
         {complete && <div className="result-notes" role="status"><strong>Đã dựng mô hình{job.elapsed_seconds ? ` trong ${job.elapsed_seconds.toFixed(1)} giây` : ""}.</strong>{job.warnings?.map((warning, i) => <p key={i}>{warning}</p>)}</div>}
-        {complete && job?.measurements && Object.keys(job.measurements).length > 0 && (
-          <div className="measurements-card">
-            <div className="measurements-header">
-              <h3><ScanLine size={16} /> Thông số hình thể ước lượng</h3>
-              <span className="measurements-badge">3D Mesh Slicing</span>
-            </div>
-            <div className="measurements-grid">
-              <div className="measure-item"><span className="measure-label">Chiều cao</span><span className="measure-value">{job.measurements.height_cm}<small>cm</small></span></div>
-              <div className="measure-item"><span className="measure-label">Vòng ngực</span><span className="measure-value">{job.measurements.chest_cm}<small>cm</small></span></div>
-              <div className="measure-item"><span className="measure-label">Vòng eo</span><span className="measure-value">{job.measurements.waist_cm}<small>cm</small></span></div>
-              <div className="measure-item"><span className="measure-label">Vòng mông</span><span className="measure-value">{job.measurements.hip_cm}<small>cm</small></span></div>
-              <div className="measure-item"><span className="measure-label">Rộng vai</span><span className="measure-value">{job.measurements.shoulder_width_cm}<small>cm</small></span></div>
-              <div className="measure-item"><span className="measure-label">Dài chân (Inseam)</span><span className="measure-value">{job.measurements.inseam_cm}<small>cm</small></span></div>
-            </div>
-            <p className="measure-note">* Các thông số được tính toán bằng cách cắt lát hình học không gian 3D tại các cao độ giải phẫu; mang tính tham khảo trực quan, chưa qua kiểm chứng may đo.</p>
-
-            {job?.body_profile && (
-              <div className="fashion-card">
-                <div className="fashion-header">
-                  <div className="shape-badge">
-                    <Sparkles size={14} />
-                    <span>Dáng người: <strong>{job.body_profile.shape}</strong></span>
-                  </div>
-                  <span className="fit-badge">{job.body_profile.fit_type}</span>
-                </div>
-                <p className="shape-desc">{job.body_profile.shape_description}</p>
-                <div className="size-recommendations">
-                  <div className="size-box">
-                    <span className="size-type">Size Áo đề xuất</span>
-                    <span className="size-number">{job.body_profile.top_size}</span>
-                    <small>Áo thun / Sơ mi</small>
-                  </div>
-                  <div className="size-box">
-                    <span className="size-type">Size Quần đề xuất</span>
-                    <span className="size-number">{job.body_profile.bottom_size}</span>
-                    <small>Quần âu / Jeans</small>
-                  </div>
-                </div>
-              </div>
-            )}
+        {complete && job.measurements && Object.keys(job.measurements).length > 0 && <div className="measurements-card">
+          <div className="measurements-header"><h3><ScanLine size={16}/> Số đo ước lượng từ hai ảnh</h3><a href={`/api/scans/${job.id}/measurements`} download className="download-button"><Download size={16}/>Xuất số đo</a></div>
+          <div className="measurements-grid">
+            {([
+              ["height_cm","Chiều cao","Bạn cung cấp"],
+              ["chest_cm","Vòng ngực","Ước lượng từ 2 ảnh"],
+              ["waist_cm","Vòng eo","Ước lượng từ 2 ảnh"],
+              ["hip_cm","Vòng mông","Ước lượng từ 2 ảnh"],
+              ["shoulder_width_cm","Khoảng cách mốc vai","Chiếu trên ảnh chính diện"],
+              ["inseam_cm","Dài trong chân","Chưa đủ dữ liệu để đo"],
+            ] as const).map(([key,title,source])=><div className="measure-item" key={key}><span className="measure-label">{title}</span><span className="measure-value">{job.measurements?.[key] == null ? "—" : <>{job.measurements[key]}<small>cm</small></>}</span><small>{source}</small></div>)}
           </div>
-        )}
+          <p className="measure-note">Các vòng giả định lát cắt cơ thể dạng elip, với vị trí giải phẫu ước lượng. Chưa có sai số đối chứng trên người thật; không dùng để may đo.</p>
+          <div className="fit-summary"><strong>{job.body_profile?.fit_status === "matched" ? "Avatar đã khớp các vòng ước lượng" : "Avatar đang khớp gần đúng"}</strong><p>Chênh lệch lớn nhất giữa chu vi avatar và số ước lượng: {job.body_profile?.max_fit_error_cm ?? "—"} cm. Đây không phải sai số đo cơ thể thật.</p></div>
+          <SizeAdvice jobId={job.id}/>
+        </div>}
         </div>
       </section>
       <div className="session-row"><span>Ảnh rõ hơn, hình thể tốt hơn.</span><button className="text-button" disabled={!!busy || deleting || (!front && !side && !job)} onClick={clear}><Trash2 size={15} />{deleting ? "Đang xóa…" : "Xóa phiên & bắt đầu lại"}</button></div>

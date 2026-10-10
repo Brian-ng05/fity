@@ -2,20 +2,13 @@
 
 import { Suspense, useEffect, useMemo, useRef } from "react";
 import { Canvas, useLoader, useThree } from "@react-three/fiber";
-import { Center, ContactShadows, Html, OrbitControls } from "@react-three/drei";
+import { Center, ContactShadows, Html, Line, OrbitControls } from "@react-three/drei";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 
-export type Measurements = {
-  height_cm?: number;
-  chest_cm?: number;
-  waist_cm?: number;
-  hip_cm?: number;
-  shoulder_width_cm?: number;
-  inseam_cm?: number;
-};
+export type Section = {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]};
 
 function Surface({ object, wireframe, targetHeight }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number }) {
   const model = useMemo(() => {
@@ -63,56 +56,17 @@ function Sample({ wireframe }: { wireframe: boolean }) {
 
 function Result({ url, wireframe, targetHeightCm }: { url: string; wireframe: boolean; targetHeightCm?: number }) {
   const model = useLoader(GLTFLoader, url);
-  return <Surface object={model.scene} wireframe={wireframe} targetHeight={targetHeightCm ? targetHeightCm / 100 : 1.75} />;
+  return <Surface object={model.scene} wireframe={wireframe} targetHeight={1.75} />;
 }
 
-function MeasurementRings({ targetHeight, measurements }: { targetHeight: number; measurements: Measurements }) {
-  const chestR = measurements.chest_cm ? ((measurements.chest_cm / 100) / (2 * Math.PI)) * 1.02 : 0.17;
-  const waistR = measurements.waist_cm ? ((measurements.waist_cm / 100) / (2 * Math.PI)) * 1.03 : 0.14;
-  const hipR = measurements.hip_cm ? ((measurements.hip_cm / 100) / (2 * Math.PI)) * 1.02 : 0.18;
-
-  return (
-    <group position={[0, 0.025, 0]}>
-      {/* Chest Ring */}
-      {measurements.chest_cm && (
-        <group position={[0, targetHeight * 0.715, 0]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[chestR, 0.003, 16, 64]} />
-            <meshBasicMaterial color="#17694c" />
-          </mesh>
-          <Html position={[chestR + 0.04, 0, 0]} center style={{ pointerEvents: "none" }}>
-            <div className="ring-3d-tag">Ngực {measurements.chest_cm}cm</div>
-          </Html>
-        </group>
-      )}
-
-      {/* Waist Ring */}
-      {measurements.waist_cm && (
-        <group position={[0, targetHeight * 0.595, 0]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[waistR, 0.003, 16, 64]} />
-            <meshBasicMaterial color="#2ed573" />
-          </mesh>
-          <Html position={[waistR + 0.04, 0, 0]} center style={{ pointerEvents: "none" }}>
-            <div className="ring-3d-tag active">Eo {measurements.waist_cm}cm</div>
-          </Html>
-        </group>
-      )}
-
-      {/* Hip Ring */}
-      {measurements.hip_cm && (
-        <group position={[0, targetHeight * 0.505, 0]}>
-          <mesh rotation={[-Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[hipR, 0.003, 16, 64]} />
-            <meshBasicMaterial color="#17694c" />
-          </mesh>
-          <Html position={[hipR + 0.04, 0, 0]} center style={{ pointerEvents: "none" }}>
-            <div className="ring-3d-tag">Mông {measurements.hip_cm}cm</div>
-          </Html>
-        </group>
-      )}
-    </group>
-  );
+function MeasurementRings({ heightCm, sections }: { heightCm:number; sections:Section[] }) {
+  const scale=1.75/(heightCm/100);
+  return <group position={[0,.025,0]}>{sections.map(section=>{
+    const points=section.points_m.map(p=>[p[0]*scale,p[1]*scale,p[2]*scale] as [number,number,number]);
+    if(points.length<3)return null;
+    const right=points.reduce((a,b)=>b[0]>a[0]?b:a);
+    return <group key={section.key}><Line points={points} color="#17694c" lineWidth={2}/><Html position={[right[0]+.05,right[1],right[2]]} center style={{pointerEvents:"none"}}><div className="ring-3d-tag">{section.label} · avatar {section.model_cm} cm</div></Html></group>;
+  })}</group>;
 }
 
 function Controls({ reset, autoRotate }: { reset: number; autoRotate: boolean }) {
@@ -135,7 +89,7 @@ export default function BodyViewer({
   autoRotate,
   targetHeightCm,
   showRings,
-  measurements,
+  sections,
 }: {
   url?: string;
   wireframe: boolean;
@@ -143,9 +97,9 @@ export default function BodyViewer({
   autoRotate: boolean;
   targetHeightCm?: number;
   showRings?: boolean;
-  measurements?: Measurements;
+  sections?: Section[];
 }) {
-  const actualHeight = targetHeightCm ? targetHeightCm / 100 : 1.75;
+
 
   return (
     <Canvas dpr={[1, 1.5]} camera={{ position: [0, 0.95, 3.1], fov: 42 }} gl={{ antialias: true, alpha: true }} fallback={<p className="viewer-fallback">Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.</p>}>
@@ -155,9 +109,7 @@ export default function BodyViewer({
       <Suspense fallback={null}>
         {url ? <Result url={url} wireframe={wireframe} targetHeightCm={targetHeightCm} /> : <Sample wireframe={wireframe} />}
       </Suspense>
-      {showRings && measurements && (
-        <MeasurementRings targetHeight={actualHeight} measurements={measurements} />
-      )}
+      {url && showRings && sections && targetHeightCm && <MeasurementRings heightCm={targetHeightCm} sections={sections}/> }
       <ContactShadows position={[0, 0.01, 0]} opacity={0.5} scale={2} blur={1.2} far={1} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}><ringGeometry args={[0.60, 0.605, 96]} /><meshBasicMaterial color="#bcc9bd" side={THREE.DoubleSide} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.61, 96]} /><meshBasicMaterial color="#ccd7cb" transparent opacity={0.45} /></mesh>
