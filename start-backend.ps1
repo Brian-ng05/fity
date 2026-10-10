@@ -1,3 +1,4 @@
+$env:PYTHONUTF8 = '1'
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath (Join-Path $PSScriptRoot 'backend')
 $python = Join-Path $PSScriptRoot 'backend\.venv\Scripts\python.exe'

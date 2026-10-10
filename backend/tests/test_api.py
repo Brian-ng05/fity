@@ -18,7 +18,7 @@ def test_validation_lifecycle_and_deletion(monkeypatch, tmp_path):
     def fake_reconstruct(front, side, height, path, report):
         report("testing")
         path.write_bytes(b"glTF-test-only")
-        return ["test only"]
+        return ["test only"], {"height_cm": height, "chest_cm": 95, "waist_cm": 75, "hip_cm": 100, "inseam_cm": None}, {"fit_status": "matched", "validation": "not_validated"}
 
     monkeypatch.setattr(main, "reconstruct", fake_reconstruct)
     with TestClient(main.app) as client:
@@ -37,10 +37,22 @@ def test_validation_lifecycle_and_deletion(monkeypatch, tmp_path):
                 break
             time.sleep(.01)
         assert status["status"] == "completed"
+        assert status["measurements"]["inseam_cm"] is None
+        exported = client.get(f"/api/scans/{key}/measurements")
+        assert exported.status_code == 200
+        assert exported.json()["unit"] == "cm"
+        assert exported.json()["body_fit"]["validation"] == "not_validated"
+        chart = {"name": "Test chart", "garment": "top", "source": "user_provided", "measurement_basis": "body_cm", "rows": [{"size": "M", "chest_cm": {"min": 90, "max": 100}, "waist_cm": {"min": 70, "max": 80}}]}
+        advice = client.post(f"/api/scans/{key}/size-advice", json=chart)
+        assert advice.json()["candidates"] == ["M"]
+        assert advice.json()["chart_source"] == "user_provided"
+        assert client.post(f"/api/scans/{key}/size-advice", json={}).status_code == 422
         model = client.get(status["model_url"])
         assert model.content == b"glTF-test-only"
         assert model.headers["cache-control"] == "no-store"
         assert client.get("/api/scans/does-not-exist/model").status_code == 404
         assert client.delete(f"/api/scans/{key}").status_code == 204
         assert client.get(f"/api/scans/{key}").status_code == 404
+        assert client.get(f"/api/scans/{key}/measurements").status_code == 404
+        assert client.post(f"/api/scans/{key}/size-advice", json=chart).status_code == 404
         assert not list(tmp_path.glob("*.glb"))

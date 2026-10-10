@@ -1,3 +1,5 @@
+> Cập nhật 10/10/2026: đọc REVIEW_2026-10-10.md trước khi dùng tài liệu này. Camera đã chuyển sang kiểm tra landmark AI; số đo dùng hai ảnh và giả định elip; inseam không còn suy từ chiều cao; size đối chiếu bảng có thể chỉnh. Các mô tả cũ về motion-only camera, mesh slicing làm nguồn số đo, phân loại dáng và chuẩn size Á Đông bên dưới đã được thay thế.
+
 # MORPH AI — bàn giao cho agent tiếp theo
 
 Cập nhật: 2026-10-09. **Source chính: D:\MORPH-AI**. Đọc lại code trước khi sửa; báo cáo kiểm tra ở `VERIFICATION.md`.

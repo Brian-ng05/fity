@@ -7,6 +7,16 @@ import trimesh
 from .images import InvalidPhoto
 
 
+def scale_lateral(x, scale, radius):
+    """Monotone lateral deformation: scale the trunk and translate outer limbs.
+
+    Blending x * scale by a rapidly falling mask can invert vertex order near
+    the armpits. This map keeps a positive derivative for our allowed scales.
+    """
+    radius = np.maximum(radius, .01)
+    return x + (scale - 1) * radius / np.tanh(1) * np.tanh(x / radius)
+
+
 def ellipse_perimeter(width: float, depth: float) -> float:
     """Full diameters and perimeter in the same unit (SciPy elliptic integral)."""
     if not np.isfinite([width, depth]).all() or min(width, depth) <= 0:
@@ -104,7 +114,7 @@ def fit_measurement_targets(mesh, targets, height_cm):
         # Constant offset on outer arms preserves their thickness instead of scaling them.
         torso_edge = np.interp(y, [t["level"] for t in ordered], [t["width_cm"] / height_cm / 2 for t in ordered]) * h
         weight = np.clip((torso_edge * 1.15 - np.abs(vertices[:, 0])) / (.025 * h), 0, 1)
-        vertices[:, 0] += (scale - 1) * (vertices[:, 0] * weight + np.sign(vertices[:, 0]) * torso_edge * (1 - weight))
+        vertices[:, 0] = scale_lateral(vertices[:, 0], scale, torso_edge)
         vertices[:, 2] *= 1 + (scale - 1) * weight
         mesh.vertices = vertices
     sections, errors = [], []

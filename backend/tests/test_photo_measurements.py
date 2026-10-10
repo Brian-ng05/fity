@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import trimesh
 from app.images import InvalidPhoto
-from app.measurements import ellipse_perimeter, estimate_from_profiles, closed_torso_section, fit_measurement_targets
+from app.measurements import ellipse_perimeter, estimate_from_profiles, closed_torso_section, fit_measurement_targets, scale_lateral
 from app.reconstruction import read_template
 
 
@@ -30,6 +30,14 @@ def test_closed_section_excludes_arms_without_cutting_open_segments():
 def test_no_closed_torso_returns_error_not_zero_or_default():
     with pytest.raises(InvalidPhoto):
         closed_torso_section(cylinder(.1,.5),.83)
+
+
+@pytest.mark.parametrize('scale',[.55,.8,1.4,1.9])
+def test_lateral_fit_never_folds_vertex_order_near_armpits(scale):
+    x=np.linspace(-.5,.5,1001)
+    result=scale_lateral(x,scale,.14)
+    assert np.all(np.diff(result)>0)
+    assert result[500]==pytest.approx(0)
 
 
 def test_estimates_depend_on_both_views_and_do_not_invent_inseam():

@@ -17,7 +17,7 @@ import trimesh
 
 from .config import MODELS
 from .images import InvalidPhoto
-from .measurements import estimate_from_profiles, fit_measurement_targets
+from .measurements import closed_torso_section, estimate_from_profiles, fit_measurement_targets, scale_lateral
 
 MODEL_PATH = MODELS / "pose_landmarker_full.task"
 TEMPLATE_PATH = MODELS / "body-template.obj"
@@ -206,12 +206,13 @@ def deform_template(mesh: trimesh.Trimesh, fractions: np.ndarray, front_width: n
     # Template landmarks are fixed to this CC0 asset; these are a modelling prior,
     # not detected measurements. Arms/head/legs retain template topology.
     shoulder_y, hip_y = 0.805, 0.515
+    # Above the armpit the silhouette includes arms. Do not treat it as chest width.
+    usable = fractions >= .30
+    fractions, front_width, side_depth = fractions[usable], front_width[usable], side_depth[usable]
     levels = shoulder_y - fractions * (shoulder_y - hip_y)
     base_width, base_depth = [], []
     for level in levels:
-        band = vertices[(abs(y - level) < 0.008) & (abs(vertices[:, 0]) < 0.14)]
-        if len(band) < 8:
-            raise RuntimeError("Body template has incompatible topology.")
+        _, band = closed_torso_section(mesh, float(level))
         base_width.append(np.ptp(band[:, 0]))
         base_depth.append(np.ptp(band[:, 2]))
     width_ratio = front_width / np.maximum(base_width, 0.04)
@@ -226,13 +227,11 @@ def deform_template(mesh: trimesh.Trimesh, fractions: np.ndarray, front_width: n
     z_scale = PchipInterpolator(knots, sz)(y)
     # Exterior arm vertices are shifted with the torso rather than thickened to
     # torso depth. Arms remain a template estimate, explicitly disclosed in UI.
-    torso_weight = np.clip((0.23 - abs(vertices[:, 0])) / 0.09, 0, 1)
+    radius = np.interp(y, levels[::-1], np.asarray(base_width)[::-1] / 2)
+    torso_weight = np.clip((radius * 1.35 - abs(vertices[:, 0])) / (radius * .25), 0, 1)
     torso_weight = torso_weight * torso_weight * (3 - 2 * torso_weight)
-    vertices[:, 0] *= 1 + (x_scale - 1) * torso_weight
+    vertices[:, 0] = scale_lateral(vertices[:, 0], x_scale, radius)
     vertices[:, 2] *= 1 + (z_scale - 1) * torso_weight
-    # Shift exterior arm vertices laterally with torso widening to avoid mesh interpenetration
-    arm_weight = (1 - torso_weight) * np.clip((y - 0.40) / 0.44, 0, 1)
-    vertices[:, 0] += np.sign(vertices[:, 0]) * 0.14 * (x_scale - 1) * arm_weight
     vertices *= height_cm / 100
     mesh.vertices = vertices
     mesh.visual.vertex_colors = [148, 170, 146, 255]

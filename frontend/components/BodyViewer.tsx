@@ -10,7 +10,7 @@ import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 
 export type Section = {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]};
 
-function Surface({ object, wireframe, targetHeight }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number }) {
+function Surface({ object, wireframe, targetHeight, preserveOrigin = false }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number; preserveOrigin?: boolean }) {
   const model = useMemo(() => {
     const copy = object.clone(true);
     copy.traverse((child) => {
@@ -46,7 +46,7 @@ function Surface({ object, wireframe, targetHeight }: { object: THREE.Object3D; 
     if (child instanceof THREE.Mesh) (child.material as THREE.Material).dispose();
   }), [model]);
 
-  return <Center top position={[0, 0.025, 0]}><primitive object={model} /></Center>;
+  return preserveOrigin ? <group position={[0, 0.025, 0]}><primitive object={model}/></group> : <Center top position={[0, 0.025, 0]}><primitive object={model} /></Center>;
 }
 
 function Sample({ wireframe }: { wireframe: boolean }) {
@@ -56,7 +56,7 @@ function Sample({ wireframe }: { wireframe: boolean }) {
 
 function Result({ url, wireframe, targetHeightCm }: { url: string; wireframe: boolean; targetHeightCm?: number }) {
   const model = useLoader(GLTFLoader, url);
-  return <Surface object={model.scene} wireframe={wireframe} targetHeight={1.75} />;
+  return <Surface object={model.scene} wireframe={wireframe} targetHeight={1.75} preserveOrigin />;
 }
 
 function MeasurementRings({ heightCm, sections }: { heightCm:number; sections:Section[] }) {
