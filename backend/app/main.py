@@ -18,6 +18,7 @@ from .config import DATA, MAX_UPLOAD, RESULT_TTL_SECONDS
 from .images import InvalidPhoto, decode_photo
 from .reconstruction import ENGINE, capture_feedback, close_detector, readiness, reconstruct
 from .sizing import SizeChart, recommend_size
+from .catalog import router as catalog_router
 
 logger = logging.getLogger(__name__)
 lock = threading.RLock()
@@ -79,6 +80,7 @@ async def lifespan(app):
 
 
 app = FastAPI(title="MORPH AI Demo", version="0.1.0", lifespan=lifespan)
+app.include_router(catalog_router)
 
 
 @app.get("/api/health")

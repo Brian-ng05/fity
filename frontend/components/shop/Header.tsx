@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { Heart, Search, ShoppingBag, Menu, X, ArrowRight } from "lucide-react";
+import { Heart, Search, ShoppingBag, Menu, X, ArrowRight, Sparkles } from "lucide-react";
 import { useCart } from "../../lib/CartContext";
 import { CATEGORIES } from "../../lib/catalog";
 
@@ -29,7 +29,11 @@ export default function Header() {
   return (
     <>
       <div className="shop-announcement">
-        Trải nghiệm mua sắm MORPH Studio · Dữ liệu sản phẩm & kích thước thử nghiệm · Không thanh toán thật
+        <span className="announcement-brand">MORPH STUDIO ATELIER</span>
+        <span className="announcement-divider">·</span>
+        <span>MIỄN PHÍ VẬN CHUYỂN ĐƠN TỪ 500.000₫</span>
+        <span className="announcement-divider">·</span>
+        <span>CÔNG NGHỆ MAY ĐO & TƯ VẤN SIZE 3D ĐỘC QUYỀN</span>
       </div>
 
       <header className="shop-header">
@@ -45,6 +49,7 @@ export default function Header() {
           MORPH<span>STUDIO</span>
         </Link>
 
+        {/* Center-aligned luxury fashion navigation bar */}
         <nav aria-label="Danh mục sản phẩm" className="desktop-nav">
           <Link
             href="/"
@@ -64,6 +69,10 @@ export default function Header() {
               </Link>
             );
           })}
+          <Link href="/scan" className="nav-scan-link">
+            <Sparkles size={13} />
+            <span>Phòng thử 3D</span>
+          </Link>
         </nav>
 
         <div className="header-actions">
@@ -113,7 +122,7 @@ export default function Header() {
             aria-label={`Mở giỏ hàng, ${totalQuantity} sản phẩm`}
             onClick={() => setIsCartOpen(true)}
           >
-            <ShoppingBag size={21} />
+            <ShoppingBag size={20} />
             <span>Giỏ hàng</span>
             <b>{totalQuantity}</b>
           </button>

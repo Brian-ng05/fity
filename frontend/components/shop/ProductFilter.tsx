@@ -1,8 +1,18 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { Filter, RotateCcw, Search, SlidersHorizontal, X } from "lucide-react";
-import { CATEGORIES, type CategoryKey } from "../../lib/catalog";
+import { useState, useTransition, useRef, useEffect } from "react";
+import {
+  Filter,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
+  X,
+  ChevronDown,
+  Check,
+  ArrowUpDown,
+  Tag,
+} from "lucide-react";
+import { CATEGORIES } from "../../lib/catalog";
 
 export interface FilterState {
   q: string;
@@ -14,22 +24,28 @@ export interface FilterState {
 }
 
 const PRICE_OPTIONS = [
-  { id: "all", label: "Tất cả mức giá" },
-  { id: "under-500", label: "Dưới 500.000₫" },
-  { id: "500-1000", label: "500.000₫ – 1.000.000₫" },
-  { id: "over-1000", label: "Trên 1.000.000₫" },
+  { id: "all", label: "Tất cả mức giá", shortLabel: "Khoảng giá" },
+  { id: "under-500", label: "Dưới 500.000₫", shortLabel: "< 500.000₫" },
+  { id: "500-1000", label: "500.000₫ – 1.000.000₫", shortLabel: "500k – 1tr" },
+  { id: "over-1000", label: "Trên 1.000.000₫", shortLabel: "> 1.000.000₫" },
 ];
 
 const COMMON_COLORS = [
-  { name: "Tất cả", value: "" },
-  { name: "Trắng / Kem", value: "trắng" },
-  { name: "Đen / Than", value: "đen" },
-  { name: "Xanh forest / Rêu", value: "xanh" },
-  { name: "Nâu / Đất", value: "nâu" },
-  { name: "Be / Cát", value: "be" },
+  { name: "Tất cả màu", value: "", hex: "" },
+  { name: "Trắng / Kem", value: "trắng", hex: "#ffffff", border: "#d8d6cc" },
+  { name: "Đen / Than", value: "đen", hex: "#1c1c1c" },
+  { name: "Xanh forest / Rêu", value: "xanh", hex: "#164032" },
+  { name: "Nâu / Đất", value: "nâu", hex: "#63432b" },
+  { name: "Be / Cát", value: "be", hex: "#d5cabb" },
 ];
 
-const COMMON_SIZES = ["", "XS", "S", "M", "L", "XL", "28", "29", "30", "31", "32"];
+const COMMON_SIZES = ["XS", "S", "M", "L", "XL", "28", "29", "30", "31", "32"];
+
+const SORT_OPTIONS = [
+  { id: "featured", label: "Mới nhất & Nổi bật" },
+  { id: "price_asc", label: "Giá: Thấp đến cao" },
+  { id: "price_desc", label: "Giá: Cao đến thấp" },
+];
 
 export default function ProductFilter({
   filters,
@@ -43,6 +59,8 @@ export default function ProductFilter({
   totalResults: number;
 }) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
 
   const hasActiveFilters =
@@ -58,6 +76,38 @@ export default function ProductFilter({
       onChange({ ...filters, [key]: value });
     });
   };
+
+  // Close dropdown on click outside or escape key
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpenDropdown(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const toggleDropdown = (name: string) => {
+    setOpenDropdown((prev) => (prev === name ? null : name));
+  };
+
+  // Helpers to get active display labels
+  const selectedPriceOption =
+    PRICE_OPTIONS.find((p) => p.id === filters.priceRange) || PRICE_OPTIONS[0];
+  const selectedColorOption =
+    COMMON_COLORS.find((c) => c.value === filters.color) || COMMON_COLORS[0];
+  const selectedSortOption =
+    SORT_OPTIONS.find((s) => s.id === filters.sort) || SORT_OPTIONS[0];
 
   return (
     <div className="product-filter-section">
@@ -80,13 +130,13 @@ export default function ProductFilter({
         ))}
       </div>
 
-      {/* Primary Toolbar: Search + Selectors + Sort + Mobile Button */}
-      <div className="filter-toolbar">
+      {/* Primary Toolbar: Search + Custom Dropdowns + Sort + Mobile Button */}
+      <div className="filter-toolbar" ref={dropdownRef}>
         <div className="filter-search-box">
-          <Search size={17} className="filter-search-icon" />
+          <Search size={16} className="filter-search-icon" />
           <input
             type="text"
-            placeholder="Tìm theo tên sản phẩm, chất liệu..."
+            placeholder="Tìm áo, quần, chất liệu linen..."
             value={filters.q}
             onChange={(e) => update("q", e.target.value)}
             className="filter-search-input"
@@ -98,22 +148,56 @@ export default function ProductFilter({
               onClick={() => update("q", "")}
               aria-label="Xóa từ khóa tìm kiếm"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           )}
         </div>
 
-        {/* Desktop Quick Dropdowns */}
+        {/* Desktop Custom Fashion Dropdowns */}
         <div className="filter-desktop-controls">
-          <div className="filter-control-group">
-            <label htmlFor="filter-price-select" className="sr-only">
-              Khoảng giá
-            </label>
+          {/* 1. Price Range Custom Dropdown */}
+          <div className="filter-dropdown-container">
+            <button
+              type="button"
+              className={`custom-dropdown-trigger ${filters.priceRange !== "all" ? "has-selection" : ""} ${openDropdown === "price" ? "is-open" : ""}`}
+              onClick={() => toggleDropdown("price")}
+              aria-expanded={openDropdown === "price"}
+              aria-haspopup="listbox"
+            >
+              <Tag size={13} className="trigger-icon" />
+              <span>{filters.priceRange === "all" ? "Khoảng giá" : selectedPriceOption.label}</span>
+              <ChevronDown size={14} className="dropdown-chevron" />
+            </button>
+
+            {openDropdown === "price" && (
+              <div className="custom-dropdown-menu" role="listbox">
+                {PRICE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={`dropdown-option-item ${filters.priceRange === opt.id ? "selected" : ""}`}
+                    onClick={() => {
+                      update("priceRange", opt.id);
+                      setOpenDropdown(null);
+                    }}
+                    role="option"
+                    aria-selected={filters.priceRange === opt.id}
+                  >
+                    <span>{opt.label}</span>
+                    {filters.priceRange === opt.id && <Check size={14} className="dropdown-option-check" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Hidden native select for accessibility/testing compatibility */}
             <select
               id="filter-price-select"
               value={filters.priceRange}
               onChange={(e) => update("priceRange", e.target.value)}
-              className="filter-select"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             >
               {PRICE_OPTIONS.map((opt) => (
                 <option key={opt.id} value={opt.id}>
@@ -123,36 +207,135 @@ export default function ProductFilter({
             </select>
           </div>
 
-          <div className="filter-control-group">
-            <label htmlFor="filter-color-select" className="sr-only">
-              Tông màu
-            </label>
+          {/* 2. Color Custom Dropdown */}
+          <div className="filter-dropdown-container">
+            <button
+              type="button"
+              className={`custom-dropdown-trigger ${filters.color ? "has-selection" : ""} ${openDropdown === "color" ? "is-open" : ""}`}
+              onClick={() => toggleDropdown("color")}
+              aria-expanded={openDropdown === "color"}
+              aria-haspopup="listbox"
+            >
+              {selectedColorOption.hex && (
+                <span
+                  className="trigger-swatch"
+                  style={{
+                    backgroundColor: selectedColorOption.hex,
+                    borderColor: selectedColorOption.border || "rgba(0,0,0,0.15)",
+                  }}
+                />
+              )}
+              <span>{filters.color ? selectedColorOption.name : "Tông màu"}</span>
+              <ChevronDown size={14} className="dropdown-chevron" />
+            </button>
+
+            {openDropdown === "color" && (
+              <div className="custom-dropdown-menu" role="listbox">
+                {COMMON_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    className={`dropdown-option-item ${filters.color === c.value ? "selected" : ""}`}
+                    onClick={() => {
+                      update("color", c.value);
+                      setOpenDropdown(null);
+                    }}
+                    role="option"
+                    aria-selected={filters.color === c.value}
+                  >
+                    <div className="dropdown-option-content">
+                      {c.hex ? (
+                        <span
+                          className="dropdown-color-swatch"
+                          style={{
+                            backgroundColor: c.hex,
+                            borderColor: c.border || "rgba(0,0,0,0.2)",
+                          }}
+                        />
+                      ) : (
+                        <span className="dropdown-color-swatch all-colors-swatch" />
+                      )}
+                      <span>{c.name}</span>
+                    </div>
+                    {filters.color === c.value && <Check size={14} className="dropdown-option-check" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <select
               id="filter-color-select"
               value={filters.color}
               onChange={(e) => update("color", e.target.value)}
-              className="filter-select"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             >
               {COMMON_COLORS.map((c) => (
                 <option key={c.value} value={c.value}>
-                  {c.name ? `Màu: ${c.name}` : "Tất cả màu"}
+                  {c.name}
                 </option>
               ))}
             </select>
           </div>
 
-          <div className="filter-control-group">
-            <label htmlFor="filter-size-select" className="sr-only">
-              Kích cỡ
-            </label>
+          {/* 3. Size Custom Dropdown */}
+          <div className="filter-dropdown-container">
+            <button
+              type="button"
+              className={`custom-dropdown-trigger ${filters.size ? "has-selection" : ""} ${openDropdown === "size" ? "is-open" : ""}`}
+              onClick={() => toggleDropdown("size")}
+              aria-expanded={openDropdown === "size"}
+              aria-haspopup="listbox"
+            >
+              <span>{filters.size ? `Size: ${filters.size}` : "Kích cỡ"}</span>
+              <ChevronDown size={14} className="dropdown-chevron" />
+            </button>
+
+            {openDropdown === "size" && (
+              <div className="custom-dropdown-menu size-dropdown-menu" role="listbox">
+                <button
+                  type="button"
+                  className={`dropdown-option-item ${!filters.size ? "selected" : ""}`}
+                  onClick={() => {
+                    update("size", "");
+                    setOpenDropdown(null);
+                  }}
+                  role="option"
+                  aria-selected={!filters.size}
+                >
+                  <span>Tất cả kích cỡ</span>
+                  {!filters.size && <Check size={14} className="dropdown-option-check" />}
+                </button>
+                <div className="dropdown-divider" />
+                <div className="dropdown-size-grid">
+                  {COMMON_SIZES.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`dropdown-size-btn ${filters.size === s ? "selected" : ""}`}
+                      onClick={() => {
+                        update("size", filters.size === s ? "" : s);
+                        setOpenDropdown(null);
+                      }}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <select
               id="filter-size-select"
               value={filters.size}
               onChange={(e) => update("size", e.target.value)}
-              className="filter-select"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             >
               <option value="">Tất cả kích cỡ</option>
-              {COMMON_SIZES.filter(Boolean).map((s) => (
+              {COMMON_SIZES.map((s) => (
                 <option key={s} value={s}>
                   Size {s}
                 </option>
@@ -160,19 +343,54 @@ export default function ProductFilter({
             </select>
           </div>
 
-          <div className="filter-control-group">
-            <label htmlFor="filter-sort-select" className="sr-only">
-              Sắp xếp
-            </label>
+          {/* 4. Sort Custom Dropdown */}
+          <div className="filter-dropdown-container">
+            <button
+              type="button"
+              className={`custom-dropdown-trigger sort-trigger ${filters.sort !== "featured" ? "has-selection" : ""} ${openDropdown === "sort" ? "is-open" : ""}`}
+              onClick={() => toggleDropdown("sort")}
+              aria-expanded={openDropdown === "sort"}
+              aria-haspopup="listbox"
+            >
+              <ArrowUpDown size={13} className="trigger-icon" />
+              <span>{selectedSortOption.label}</span>
+              <ChevronDown size={14} className="dropdown-chevron" />
+            </button>
+
+            {openDropdown === "sort" && (
+              <div className="custom-dropdown-menu sort-dropdown-menu" role="listbox">
+                {SORT_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    className={`dropdown-option-item ${filters.sort === opt.id ? "selected" : ""}`}
+                    onClick={() => {
+                      update("sort", opt.id);
+                      setOpenDropdown(null);
+                    }}
+                    role="option"
+                    aria-selected={filters.sort === opt.id}
+                  >
+                    <span>{opt.label}</span>
+                    {filters.sort === opt.id && <Check size={14} className="dropdown-option-check" />}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <select
               id="filter-sort-select"
               value={filters.sort}
               onChange={(e) => update("sort", e.target.value)}
-              className="filter-select sort-select"
+              className="sr-only"
+              tabIndex={-1}
+              aria-hidden="true"
             >
-              <option value="featured">Mới nhất & Nổi bật</option>
-              <option value="price_asc">Giá: Thấp đến cao</option>
-              <option value="price_desc">Giá: Cao đến thấp</option>
+              {SORT_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -183,7 +401,7 @@ export default function ProductFilter({
           onClick={() => setMobileDrawerOpen(true)}
           aria-label="Mở bộ lọc"
         >
-          <SlidersHorizontal size={17} />
+          <SlidersHorizontal size={16} />
           <span>Bộ lọc & Sắp xếp</span>
           {hasActiveFilters && <span className="active-dot" />}
         </button>
@@ -197,7 +415,7 @@ export default function ProductFilter({
 
         {hasActiveFilters && (
           <button className="reset-filter-btn" onClick={onReset}>
-            <RotateCcw size={14} />
+            <RotateCcw size={13} />
             <span>Xóa bộ lọc</span>
           </button>
         )}
@@ -268,10 +486,19 @@ export default function ProductFilter({
                   {COMMON_COLORS.map((c) => (
                     <button
                       key={c.value}
-                      className={`drawer-pill ${filters.color === c.value ? "active" : ""}`}
+                      className={`drawer-pill color-drawer-pill ${filters.color === c.value ? "active" : ""}`}
                       onClick={() => update("color", c.value)}
                     >
-                      {c.name}
+                      {c.hex && (
+                        <span
+                          className="drawer-color-dot"
+                          style={{
+                            backgroundColor: c.hex,
+                            borderColor: c.border || "rgba(0,0,0,0.2)",
+                          }}
+                        />
+                      )}
+                      <span>{c.name}</span>
                     </button>
                   ))}
                 </div>
@@ -280,7 +507,7 @@ export default function ProductFilter({
               <div className="drawer-filter-group">
                 <label>Kích cỡ</label>
                 <div className="drawer-pills size-pills">
-                  {COMMON_SIZES.filter(Boolean).map((s) => (
+                  {COMMON_SIZES.map((s) => (
                     <button
                       key={s}
                       className={`drawer-pill ${filters.size === s ? "active" : ""}`}
@@ -294,15 +521,17 @@ export default function ProductFilter({
 
               <div className="drawer-filter-group">
                 <label>Sắp xếp theo</label>
-                <select
-                  value={filters.sort}
-                  onChange={(e) => update("sort", e.target.value)}
-                  className="filter-select"
-                >
-                  <option value="featured">Mới nhất & Nổi bật</option>
-                  <option value="price_asc">Giá: Thấp đến cao</option>
-                  <option value="price_desc">Giá: Cao đến thấp</option>
-                </select>
+                <div className="drawer-pills">
+                  {SORT_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.id}
+                      className={`drawer-pill ${filters.sort === opt.id ? "active" : ""}`}
+                      onClick={() => update("sort", opt.id)}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 

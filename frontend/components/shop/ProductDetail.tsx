@@ -57,6 +57,17 @@ export default function ProductDetail({ product }: { product: Product }) {
   const favorite = isWishlisted(product.id);
   const relatedProducts = useMemo(() => getRelatedProducts(product.id, 4), [product.id]);
 
+  // Sync size from query param or scan context
+  useEffect(() => {
+    const querySize = searchParams?.get("size");
+    if (querySize && product.sizes.includes(querySize)) {
+      setSelectedSize(querySize);
+      applySizeToProduct(product.id, querySize);
+    } else if (appliedSizes[product.id] && product.sizes.includes(appliedSizes[product.id])) {
+      setSelectedSize(appliedSizes[product.id]);
+    }
+  }, [searchParams, appliedSizes, product.id, product.sizes, applySizeToProduct]);
+
   // Fetch advice if scan session is active
   useEffect(() => {
     if (!job || job.status !== "completed") {
@@ -278,7 +289,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                     {advice?.candidates?.length
                       ? `MORPH AI gợi ý: Size ${advice.candidates.join(", ")}`
                       : advice?.status === "insufficient_measurements"
-                      ? "Cần scan toàn thân để đối chiếu size này"
+                      ? "Chưa đủ dữ liệu để gợi ý (cần số đo vòng mông)"
                       : job?.status === "completed"
                       ? "Xem lại hình thể 3D & gợi ý size"
                       : "Bạn chưa chắc về size?"}

@@ -30,6 +30,65 @@ interface ScanContextValue {
 
 const ScanContext = createContext<ScanContextValue | null>(null);
 
+export function computeClientSizeAdvice(
+  measurements: Record<string, number | null | undefined>,
+  chart: Product["chart"]
+): SizeAdviceResult {
+  const isBottom = chart.garment === "bottom";
+  const required = isBottom ? (["waist_cm", "hip_cm"] as const) : (["chest_cm", "waist_cm"] as const);
+
+  if (isBottom && (measurements.hip_cm == null || measurements.hip_cm === undefined)) {
+    return {
+      status: "insufficient_measurements",
+      candidates: [],
+      chart_name: chart.name,
+      message: "Chưa đủ dữ liệu để gợi ý (cần số đo vòng mông)",
+      warning: "Webcam thân trên không đo được vòng mông. Hãy chụp toàn thân để có số đo này.",
+    };
+  }
+
+  for (const dim of required) {
+    if (measurements[dim] == null || measurements[dim] === undefined) {
+      return {
+        status: "insufficient_measurements",
+        candidates: [],
+        chart_name: chart.name,
+        message: isBottom ? "Chưa đủ dữ liệu để gợi ý (cần số đo vòng mông)" : "Chưa đủ số đo để đối chiếu bảng size.",
+      };
+    }
+  }
+
+  const candidates: string[] = [];
+  for (const row of chart.rows) {
+    let fits = true;
+    for (const dim of required) {
+      const range = row[dim];
+      const val = measurements[dim];
+      if (range && val != null) {
+        if (val < range.min || val > range.max) {
+          fits = false;
+          break;
+        }
+      }
+    }
+    if (fits) {
+      candidates.push(row.size);
+    }
+  }
+
+  return {
+    status: candidates.length > 0 ? "matched" : "no_match",
+    candidates,
+    chart_name: chart.name,
+    message:
+      candidates.length > 0
+        ? "Khớp các khoảng trong bảng đã chọn."
+        : "Không có size nào khớp tất cả số đo của bạn trong bảng.",
+    warning:
+      "Số đo từ ảnh chưa được kiểm chứng; đây là gợi ý tham khảo. Độ co giãn và độ rộng trang phục chưa được mô phỏng.",
+  };
+}
+
 export function ScanProvider({ children }: { children: React.ReactNode }) {
   const [job, setJobState] = useState<Job | null>(null);
   const [adviceCache, setAdviceCache] = useState<Record<string, SizeAdviceResult>>({});
@@ -79,28 +138,28 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(product.chart),
         });
-        const data = await res.json();
-        if (!res.ok) {
-          const errMsg = typeof data.detail === "string" ? data.detail : "Không thể đối chiếu bảng size.";
-          const failResult: SizeAdviceResult = {
-            status: "error",
-            candidates: [],
-            message: errMsg,
-          };
-          setAdviceCache((prev) => ({ ...prev, [product.id]: failResult }));
-          return failResult;
+
+        if (res.ok) {
+          const data = (await res.json()) as SizeAdviceResult;
+          if (
+            data.status === "insufficient_measurements" &&
+            (product.chart.garment === "bottom" || activeJob.measurements?.hip_cm == null)
+          ) {
+            data.message = "Chưa đủ dữ liệu để gợi ý (cần số đo vòng mông)";
+          }
+          setAdviceCache((prev) => ({ ...prev, [product.id]: data }));
+          return data;
         }
 
-        const adviceResult = data as SizeAdviceResult;
-        setAdviceCache((prev) => ({ ...prev, [product.id]: adviceResult }));
-        return adviceResult;
-      } catch (err: any) {
-        const errResult: SizeAdviceResult = {
-          status: "error",
-          candidates: [],
-          message: err?.message || "Không thể kết nối dịch vụ đối chiếu size.",
-        };
-        return errResult;
+        // Backend returned error status code: fallback to client calculation
+        const fallback = computeClientSizeAdvice(activeJob.measurements || {}, product.chart);
+        setAdviceCache((prev) => ({ ...prev, [product.id]: fallback }));
+        return fallback;
+      } catch {
+        // Backend offline / network error: fallback to client calculation
+        const fallback = computeClientSizeAdvice(activeJob.measurements || {}, product.chart);
+        setAdviceCache((prev) => ({ ...prev, [product.id]: fallback }));
+        return fallback;
       }
     },
     [job, adviceCache]

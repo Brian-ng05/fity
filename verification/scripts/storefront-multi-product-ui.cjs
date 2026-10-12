@@ -221,10 +221,12 @@ async function ready(url) {
     console.log('10. Testing 3D Scan Integration on Product Detail...');
     await page.locator('.fit-entry').click();
     await page.locator('.scan-onboarding').waitFor();
+    await page.screenshot({ path: path.join(out, '05a-scan-onboarding-desktop.png'), fullPage: false });
 
     // Check consent and start camera
     await page.getByRole('checkbox', { name: /Tôi đồng ý gửi khung hình/ }).check();
     await page.getByRole('button', { name: 'Mở camera & bắt đầu', exact: true }).click();
+    await page.screenshot({ path: path.join(out, '05b-camera-session-desktop.png'), fullPage: false });
     await page.getByRole('button', { name: 'Bắt đầu quét', exact: true }).click();
 
     console.log('Camera started. Injecting front fixture...');
@@ -255,9 +257,18 @@ async function ready(url) {
     await page.getByRole('button', { name: 'Khối đặc', exact: true }).click();
     await page.waitForTimeout(500);
 
-    // Close fit modal
-    await page.locator('.fit-modal').getByRole('button', { name: /Đóng Tìm size/ }).click();
-    console.log('Fit modal closed.');
+    // Test Apply Size CTA if candidate size is available
+    const applyBtn = page.locator('.scan-size-apply-btn').first();
+    if (await applyBtn.count() > 0) {
+      console.log('Applying recommended size via primary CTA...');
+      await applyBtn.click();
+      await page.waitForTimeout(500);
+      console.log('Size applied, returned to product context.');
+    } else {
+      // Close fit modal
+      await page.locator('.fit-modal').getByRole('button', { name: /Đóng Tìm size/ }).click();
+      console.log('Fit modal closed.');
+    }
 
     console.log('11. Testing Mobile Responsive Viewport...');
     await page.setViewportSize({ width: 390, height: 844 });

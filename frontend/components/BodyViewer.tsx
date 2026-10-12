@@ -11,7 +11,7 @@ import type {MeasurementDetail} from "../lib/useBodyScan";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 
 export type Section = {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]};
-const SECTION_COLORS: Record<string,string> = {chest_cm:"#17694c",waist_cm:"#995423",hip_cm:"#365b88",chest:"#17694c",waist:"#995423",hip:"#365b88"};
+const SECTION_COLORS: Record<string,string> = {chest_cm:"#194e3d",waist_cm:"#a0521e",hip_cm:"#285b7e",chest:"#194e3d",waist:"#a0521e",hip:"#285b7e"};
 const VIEWS = [{label:"Trước",angle:0},{label:"Nghiêng",angle:Math.PI/2},{label:"Sau",angle:Math.PI},{label:"3/4",angle:Math.PI/4}];
 
 function Surface({ object, wireframe, targetHeight, preserveOrigin = false, studio=false, technical=false, points=false }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number; preserveOrigin?: boolean; studio?:boolean;technical?:boolean;points?:boolean }) {
@@ -37,10 +37,10 @@ function Surface({ object, wireframe, targetHeight, preserveOrigin = false, stud
           geometry.setAttribute("morphCoord",new THREE.BufferAttribute(coordinates,2));
         }
         const material = new THREE.MeshStandardMaterial({
-          color: technical?"#328f97":studio?"#ffffff":"#a5b5a3",
+          color: technical?"#3d5c4e":studio?"#ffffff":"#4a6858",
           vertexColors:false,
-          roughness: 0.82,
-          metalness: 0.02,
+          roughness: 0.80,
+          metalness: 0.04,
           wireframe,
           side: THREE.DoubleSide,
         });
@@ -69,7 +69,7 @@ function Surface({ object, wireframe, targetHeight, preserveOrigin = false, stud
     }
     if(points){
       const cloud=new THREE.Group();copy.updateMatrixWorld(true);
-      copy.traverse(child=>{if(child instanceof THREE.Mesh){const geometry=child.geometry.clone();geometry.applyMatrix4(child.matrixWorld);cloud.add(new THREE.Points(geometry,new THREE.PointsMaterial({color:"#48d2c5",size:.005,sizeAttenuation:true})));}});
+      copy.traverse(child=>{if(child instanceof THREE.Mesh){const geometry=child.geometry.clone();geometry.applyMatrix4(child.matrixWorld);cloud.add(new THREE.Points(geometry,new THREE.PointsMaterial({color:"#194e3d",size:.006,sizeAttenuation:true})));}});
       return cloud;
     }
     return copy;
@@ -151,16 +151,16 @@ export default function BodyViewer({
   return (
     <div className="body-viewer">
     <Canvas frameloop={autoRotate?"always":"demand"} dpr={[1, 1.5]} camera={{ position: [0, 0.95, 3.1], fov: 42 }} gl={{ antialias: true, alpha: true, preserveDrawingBuffer:technical }} fallback={<p className="viewer-fallback">Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.</p>}>
-      <hemisphereLight args={["#fffdf5","#697d6c",1.8]} />
+      <hemisphereLight args={["#ffffff","#7c8e81",2.2]} />
       <directionalLight position={[-3, 4, 5]} intensity={2.2} />
-      <directionalLight position={[3, 2, -3]} intensity={1.6} color="#f2f6ed" />
+      <directionalLight position={[3, 2, -3]} intensity={1.5} color="#f4f7f1" />
       <Suspense fallback={null}>
         {url ? <Result url={url} wireframe={wireframe} studio={studio} technical={technical} points={points}/> : <Sample wireframe={wireframe} studio={studio} technical={technical} points={points}/>}
       </Suspense>
       {url && showRings && !technical && sections && targetHeightCm && <MeasurementRings heightCm={targetHeightCm} sections={sections}/> }
-      {technical&&showRings&&annotations&&annotations.filter(m=>m.points_m.length>1).map(m=><Line key={m.key} points={m.points_m.map(p=>p.map(v=>v*1.75/((targetHeightCm||175)/100)) as [number,number,number])} position={[0,.025,0]} color={m.color} lineWidth={selectedMeasurement===m.key?4:1.5} transparent opacity={!selectedMeasurement||selectedMeasurement===m.key?1:.35}/>) }
-      {technical&&<gridHelper args={[6,40,"#244149","#172d34"]} position={[0,-.001,0]}/>}
-      {!points && <ContactShadows position={[0, 0.01, 0]} opacity={0.5} scale={2} blur={1.2} far={1} />}
+      {technical&&showRings&&annotations&&annotations.filter(m=>m.points_m.length>1).map(m=><Line key={m.key} points={m.points_m.map(p=>p.map(v=>v*1.75/((targetHeightCm||175)/100)) as [number,number,number])} position={[0,.025,0]} color={m.color} lineWidth={selectedMeasurement===m.key?4.5:2} transparent opacity={!selectedMeasurement||selectedMeasurement===m.key?1:.35}/>) }
+      {technical&&<gridHelper args={[6,30,"#c2cdbf","#d8e1d5"]} position={[0,-.001,0]}/>}
+      {!points && <ContactShadows position={[0, 0.01, 0]} opacity={0.38} scale={2} blur={1.5} far={1} />}
       {!studio&&!technical&&<><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}><ringGeometry args={[0.60, 0.605, 96]} /><meshBasicMaterial color="#bcc9bd" side={THREE.DoubleSide} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.61, 96]} /><meshBasicMaterial color="#ccd7cb" transparent opacity={0.45} /></mesh></>}
       <Controls reset={reset} autoRotate={autoRotate} angle={VIEWS[view].angle} revision={revision} />

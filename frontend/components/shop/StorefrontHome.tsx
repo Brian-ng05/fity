@@ -177,32 +177,41 @@ function StorefrontHomeContent() {
           </div>
 
           <div className="hero-feature-card">
-            <div className="feature-card-header">
-              <span className="feature-icon-badge">
-                <ScanLine size={22} />
-              </span>
-              <div>
-                <strong>MORPH AI Fit Studio</strong>
-                <small>Webcam thân trên · 2 góc chụp</small>
-              </div>
+            <div className="feature-card-eyebrow">
+              <span className="feature-atelier-badge">MORPH ATELIER · 3D FIT LAB</span>
+              <span className="feature-status-dot" title="Sẵn sàng kết nối" />
             </div>
+            <h3 className="feature-card-heading">
+              May đo kỹ thuật số chuẩn xác qua 2 góc chụp máy ảnh
+            </h3>
             <p className="feature-card-text">
-              Không cần thước dây. Trí tuệ nhân tạo ước lượng số đo từ hai khung hình và tự động đối chiếu với bảng size của từng sản phẩm.
+              Không cần thước dây. AI phân tích hình thể thân trên và tự động đối chiếu với bảng size của từng món đồ, giúp bạn chọn đúng kích cỡ ngay từ lần đầu tiên.
             </p>
-            <div className="feature-card-stats">
-              <div>
-                <span>Sản phẩm</span>
-                <strong>{allProducts.length}+ món</strong>
+            <div className="feature-card-highlights">
+              <div className="highlight-item">
+                <span className="highlight-bullet" />
+                <span>Webcam thân trên · 2 góc chụp trước & nghiêng</span>
               </div>
-              <div>
-                <span>Thời gian scan</span>
-                <strong>~20 giây</strong>
+              <div className="highlight-item">
+                <span className="highlight-bullet" />
+                <span>Khớp chuẩn số đo với phom dáng từng thiết kế</span>
               </div>
-              <div>
-                <span>Quyền riêng tư</span>
-                <strong>Không lưu ảnh</strong>
+              <div className="highlight-item">
+                <span className="highlight-bullet" />
+                <span>Bảo mật tuyệt đối · Không lưu trữ hình ảnh cá nhân</span>
               </div>
             </div>
+            <button
+              className="hero-scan-cta-link"
+              onClick={() => openScanForProduct(essential)}
+              aria-label="Trải nghiệm phòng thử 3D ngay"
+            >
+              <span className="cta-icon-text">
+                <ScanLine size={16} />
+                <span>{job?.status === "completed" ? "Xem lại mô hình 3D của bạn" : "Trải nghiệm phòng thử 3D ngay"}</span>
+              </span>
+              <ArrowRight size={15} />
+            </button>
           </div>
         </section>
 
