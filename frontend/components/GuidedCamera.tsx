@@ -112,7 +112,7 @@ export default function GuidedCamera({side,onCapture,onClose}:{side:boolean;onCa
     <div className="dialog-title"><h2 id="camera-title">Chụp {side?"góc nghiêng (02)":"chính diện (01)"}</h2><button className="icon-button" onClick={onClose} aria-label="Đóng camera"><X size={20}/></button></div>
     <p>{side?"Xoay người 90°, tay hơi phía sau thân, giữ đủ đầu và chân trong ảnh.":"Đứng thẳng, hướng hai vai về camera, tay hơi tách thân. Giữ đủ đầu và chân trong ảnh."}</p>
     <div className="camera-layout"><div className="camera-preview-column">
-    <div className="camera-frame"><video ref={video} playsInline muted/>
+    <div className="camera-frame" style={{aspectRatio:`${dimensions.w}/${dimensions.h}`}}><video ref={video} playsInline muted/>
       <svg className="pose-overlay" viewBox={`0 0 ${dimensions.w} ${dimensions.h}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <rect x={dimensions.w*.035} y={dimensions.h*.04} width={dimensions.w*.93} height={dimensions.h*.92} rx={12} fill="none" stroke={aiEnabled&&feedback.ready?"#a6ffca":"#f0f5ed"} strokeOpacity=".7" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="10 8"/>
         {aiEnabled&&EDGES.map(([a,b])=>feedback.landmarks[a]?.[2]>.5&&feedback.landmarks[b]?.[2]>.5?<line key={`${a}-${b}`} x1={feedback.landmarks[a][0]*dimensions.w} y1={feedback.landmarks[a][1]*dimensions.h} x2={feedback.landmarks[b][0]*dimensions.w} y2={feedback.landmarks[b][1]*dimensions.h} stroke="#a6ffca" strokeWidth={3} vectorEffect="non-scaling-stroke"/>:null)}

@@ -1,5 +1,3 @@
-> Cập nhật 10/10/2026: đọc REVIEW_2026-10-10.md trước khi dùng tài liệu này. Camera đã chuyển sang kiểm tra landmark AI; số đo dùng hai ảnh và giả định elip; inseam không còn suy từ chiều cao; size đối chiếu bảng có thể chỉnh. Các mô tả cũ về motion-only camera, mesh slicing làm nguồn số đo, phân loại dáng và chuẩn size Á Đông bên dưới đã được thay thế.
-
 # Chạy MORPH AI trên máy của bạn
 
 Bản làm việc chính nằm ở **D:\MORPH-AI**. Frontend và backend là hai source riêng, có dependencies và lệnh chạy riêng:
@@ -55,7 +53,19 @@ Mở cả thư mục `D:\MORPH-AI` trong VS Code. Dừng terminal backend trư�
 
 Đặt breakpoint trong `backend/app/main.py` hoặc `backend/app/reconstruction.py`; thao tác trên web sẽ đi qua breakpoint. Frontend vẫn chạy ở terminal riêng. Dừng debug bằng `Shift+F5`. Cấu hình này không bật auto reload; khi sửa Python, dừng rồi chạy lại. Không chạy riêng `main.py` bằng nút Run Python File vì đây là ứng dụng ASGI cần Uvicorn.
 
-## 4. Thử demo
+## 4. Camera và body fit — cập nhật 12/10/2026
+
+Bấm **Chụp ảnh** ở từng góc. Camera nay giữ trọn khung, không ép dọc hoặc kéo giãn hình. Trên laptop, cửa sổ mở rộng tới 1120px. Chọn thiết bị trong **Camera** nếu có nhiều camera. Nếu có thanh zoom, dùng **Mở rộng tối đa camera này**; tính năng chỉ xuất hiện khi thiết bị hỗ trợ. Khung web lớn hơn không biến camera thường thành góc siêu rộng.
+
+Đặt máy cố định ngang giữa thân; lùi đến khi thấy đủ đầu/tay/chân, giữ người gần giữa ảnh. Bật **AI hướng dẫn và tự chụp** nếu đồng ý gửi khung hình tới backend. AI kiểm tra tư thế liên tiếp, chờ đứng yên rồi đếm ngược. Tắt AI để chụp thủ công sau ba giây. Khi đổi camera hoặc đóng cửa sổ, stream cũ được dừng. Có nút thử lại nếu camera lỗi.
+
+Kết quả bên phải có các góc **Trước / Nghiêng / Sau / 3/4**, vòng đo màu và bảng chú thích riêng. Xoay để xem cả lưng và bụng. Chu vi trên avatar được fit theo số ước lượng; mức chênh lệch fit không phải sai số cơ thể thật. Chưa mô phỏng vải hoặc thử áo quần ảo.
+
+Ở **Đối chiếu size quần áo**, chọn áo/quần. Bảng sẵn có chỉ minh họa; để demo nhãn hàng cụ thể, bật bảng của nhãn hàng và nhập khoảng số đo CƠ THỂ khuyến nghị (không nhập kích thước quần áo trải phẳng). Hệ thống chỉ gợi ý size thỏa tất cả khoảng, có thể không có size phù hợp.
+
+Nếu vừa cập nhật source, dừng và mở lại hai terminal rồi tải lại trang để dùng backend mới.
+
+### Thử demo từ đầu
 
 1. Ban đầu là **mô hình minh họa**, chưa phải kết quả từ ảnh của bạn.
 2. Chuẩn bị hai ảnh cùng một người: toàn thân chính diện và nghiêng 90°, đồ ôm sát, nền đơn giản, đủ sáng, không cắt đầu/bàn chân. Ảnh JPG/PNG/WebP, tối đa 10 MB mỗi ảnh.

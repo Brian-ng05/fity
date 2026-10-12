@@ -14,7 +14,7 @@ Vietnamese fashion SMEs and startup founders evaluating a body reconstruction de
 Upload or capture body photos and inspect an actual reconstructed 3D surface in a browser. The immediate deliverable is a local working demo, not a commercial SaaS.
 
 ## Capabilities and Constraints
-No e-commerce integration, payments, or accounts in this demo. Do not represent sample avatars or unvalidated measurements as a successful scan. User has selected design-image-first implementation. Hardware detected: NVIDIA MX330, 2 GB VRAM. Local lightweight reconstruction versus external SAM GPU processing remains the user's pending choice.
+No e-commerce integration, payments, or accounts in this demo. Do not represent sample avatars or unvalidated measurements as a successful scan. User has selected design-image-first implementation. Hardware detected: NVIDIA MX330, 2 GB VRAM. Current implementation uses local CPU MediaPipe plus a MakeHuman template. User selected continuous pose guidance, two-angle capture and clothing size advice. Measurement accuracy remains unvalidated; external SAM/GPU is not part of this iteration.
 
 ## Brand Commitments
 MORPH AI, Vietnamese copy. User accepted a proposed light, compact scan interface and requested a design image before frontend implementation.

@@ -3,7 +3,7 @@ import pytest
 import trimesh
 from app.images import InvalidPhoto
 from app.measurements import ellipse_perimeter, estimate_from_profiles, closed_torso_section, fit_measurement_targets, scale_lateral
-from app.reconstruction import read_template
+from app.reconstruction import read_template, deform_template
 
 
 def cylinder(radius, x=0):
@@ -66,3 +66,28 @@ def test_fitted_mesh_matches_targets_and_exports_actual_sections():
         points=np.array(section['points_m'])
         actual=np.linalg.norm(np.diff(points,axis=0),axis=1).sum()*100
         assert actual==pytest.approx(section['model_cm'],abs=.1)
+
+
+def test_fitting_is_independent_of_depth_origin():
+    mesh=read_template();mesh.apply_scale(1.7)
+    targets=[]
+    for key,level in [('chest_cm',.705),('waist_cm',.60),('hip_cm',.505)]:
+        perimeter,points=closed_torso_section(mesh,level*1.7)
+        targets.append({'key':key,'label':key,'level':level,'target_cm':perimeter*1.08,'width_cm':np.ptp(points[:,0])*100})
+    baseline,_=fit_measurement_targets(mesh,targets,170)
+    shifted=mesh.copy();shifted.apply_translation([0,0,.4])
+    fitted,_=fit_measurement_targets(shifted,targets,170)
+    assert np.allclose(fitted.vertices-[0,0,.4],baseline.vertices,atol=1e-6)
+
+
+def test_local_side_silhouette_bump_does_not_create_a_back_spike():
+    fractions=np.linspace(.12,1.12,35)
+    widths=np.full(35,.18)
+    depths=.13+.065*np.exp(-((fractions-.66)/.07)**2)
+    result=deform_template(read_template(),fractions,widths,depths,170)
+    back=[]
+    for level in np.linspace(.53,.70,18):
+        _,curve=closed_torso_section(result,level*1.7)
+        back.append(curve[:,2].min()/1.7)
+    # A smooth prior must not imprint a several-cm spur over one 1%-height band.
+    assert np.max(np.abs(np.diff(back)))<.012

@@ -100,9 +100,10 @@ def fit_measurement_targets(mesh, targets, height_cm):
     h = height_cm / 100
     ordered = sorted(targets, key=lambda t: t["level"])
     for _ in range(3):
-        factors = []
+        factors, centers_z = [], []
         for target in ordered:
-            current, _ = closed_torso_section(mesh, target["level"] * h)
+            current, curve = closed_torso_section(mesh, target["level"] * h)
+            centers_z.append((curve[:, 2].min() + curve[:, 2].max()) / 2)
             factor = target["target_cm"] / current
             if not .70 <= factor <= 1.40:
                 raise InvalidPhoto("Số đo từ hai góc chưa nhất quán với hình thể. Chụp lại cùng tư thế, tay không che thân.")
@@ -115,7 +116,8 @@ def fit_measurement_targets(mesh, targets, height_cm):
         torso_edge = np.interp(y, [t["level"] for t in ordered], [t["width_cm"] / height_cm / 2 for t in ordered]) * h
         weight = np.clip((torso_edge * 1.15 - np.abs(vertices[:, 0])) / (.025 * h), 0, 1)
         vertices[:, 0] = scale_lateral(vertices[:, 0], scale, torso_edge)
-        vertices[:, 2] *= 1 + (scale - 1) * weight
+        center_z = np.interp(y, [t["level"] for t in ordered], centers_z)
+        vertices[:, 2] = center_z + (vertices[:, 2] - center_z) * (1 + (scale - 1) * weight)
         mesh.vertices = vertices
     sections, errors = [], []
     for target in targets:

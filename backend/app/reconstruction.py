@@ -21,7 +21,7 @@ from .measurements import closed_torso_section, estimate_from_profiles, fit_meas
 
 MODEL_PATH = MODELS / "pose_landmarker_full.task"
 TEMPLATE_PATH = MODELS / "body-template.obj"
-ENGINE = "mediapipe-two-photo-fit-v2"
+ENGINE = "mediapipe-two-photo-fit-v3"
 
 _detector = None
 _detector_lock = threading.Lock()
@@ -205,16 +205,19 @@ def deform_template(mesh: trimesh.Trimesh, fractions: np.ndarray, front_width: n
     y = vertices[:, 1]
     # Template landmarks are fixed to this CC0 asset; these are a modelling prior,
     # not detected measurements. Arms/head/legs retain template topology.
-    shoulder_y, hip_y = 0.805, 0.515
-    # Above the armpit the silhouette includes arms. Do not treat it as chest width.
-    usable = fractions >= .30
-    fractions, front_width, side_depth = fractions[usable], front_width[usable], side_depth[usable]
-    levels = shoulder_y - fractions * (shoulder_y - hip_y)
-    base_width, base_depth = [], []
+    # A hand overlapping the side silhouette can introduce a large local bulge.
+    # Fit a smooth template prior through the three measured regions, rather
+    # than imprinting every noisy silhouette row onto the skin.
+    _, anchors = estimate_from_profiles(fractions, front_width, side_depth, height_cm, 0)
+    levels = np.array([a["level"] for a in anchors])
+    front_width = np.array([a["width_cm"] / height_cm for a in anchors])
+    side_depth = np.array([a["depth_cm"] / height_cm for a in anchors])
+    base_width, base_depth, base_center_z = [], [], []
     for level in levels:
         _, band = closed_torso_section(mesh, float(level))
         base_width.append(np.ptp(band[:, 0]))
         base_depth.append(np.ptp(band[:, 2]))
+        base_center_z.append((band[:, 2].min() + band[:, 2].max()) / 2)
     width_ratio = front_width / np.maximum(base_width, 0.04)
     depth_ratio = side_depth / np.maximum(base_depth, 0.04)
     if np.any((width_ratio < 0.55) | (width_ratio > 1.9)) or np.any((depth_ratio < 0.5) | (depth_ratio > 2.2)):
@@ -231,7 +234,10 @@ def deform_template(mesh: trimesh.Trimesh, fractions: np.ndarray, front_width: n
     torso_weight = np.clip((radius * 1.35 - abs(vertices[:, 0])) / (radius * .25), 0, 1)
     torso_weight = torso_weight * torso_weight * (3 - 2 * torso_weight)
     vertices[:, 0] = scale_lateral(vertices[:, 0], x_scale, radius)
-    vertices[:, 2] *= 1 + (z_scale - 1) * torso_weight
+    # OBJ depth origin is not the torso centre (feet/nose affect its bounds).
+    # Scaling about global zero pushes the back sideways and distorts posture.
+    center_z = np.interp(y, levels[::-1], np.asarray(base_center_z)[::-1])
+    vertices[:, 2] = center_z + (vertices[:, 2] - center_z) * (1 + (z_scale - 1) * torso_weight)
     vertices *= height_cm / 100
     mesh.vertices = vertices
     mesh.visual.vertex_colors = [148, 170, 146, 255]
@@ -266,5 +272,6 @@ def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destinati
         "Ngực/eo/mông được ước lượng từ bề rộng và độ sâu hai ảnh với giả định lát cắt elip. Chưa kiểm chứng sai số trên người thật.",
         "Chiều cao do bạn nhập; rộng vai là khoảng cách hai mốc vai trên ảnh. Chưa đủ cơ sở đo inseam nên không xuất số này.",
         "Đầu, khuôn mặt và bàn tay/chân giữ theo mẫu.",
+        "Biên dạng thân được làm mượt qua ba vùng đo trên mẫu có sẵn; chưa tái tạo đầy đủ tư thế hoặc phân bố mô cơ thể.",
     ]
     return warnings, measurements, profile
