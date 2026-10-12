@@ -1,4 +1,6 @@
-﻿# MORPH AI — demo web scan hai góc
+> Cập nhật storefront 12/10/2026: người dùng đã chọn trang mua sắm demo có sản phẩm và module tìm size. Route / là cửa hàng minh họa, /scan giữ công cụ kỹ thuật. Đọc COMMERCE_HANDOFF.md cho source và phạm vi mới.
+
+# MORPH Studio — demo mua sắm và tìm size từ hai góc chụp
 
 Source chính: `D:\MORPH-AI`. Frontend: `frontend/` (Next.js). Backend: `backend/` (Python/FastAPI). Cập nhật 12/10/2026.
 
@@ -28,7 +30,7 @@ Camera rộng tối đa 1120px, giữ tỷ lệ ảnh, chọn camera và zoom n�
 
 ## Giới hạn
 
-Đây là demo ước lượng hình thể bằng CPU, chưa có sai số kiểm chứng trên người thật. Avatar khớp số ước lượng không chứng minh số đo đúng. Đầu/mặt và phần lớn tay/chân theo mẫu; inseam chưa đủ dữ liệu nên để trống. Chưa mô phỏng vải, độ co giãn hoặc độ rộng trang phục. Chưa SAM/MHR/PyTorch, chưa ecommerce, billing hay Mix & Match.
+Đây là demo ước lượng hình thể bằng CPU, chưa có sai số kiểm chứng trên người thật. Avatar khớp số ước lượng không chứng minh số đo đúng. Đầu/mặt và phần lớn tay/chân theo mẫu; inseam chưa đủ dữ liệu nên để trống. Chưa mô phỏng vải, độ co giãn hoặc độ rộng trang phục. Có trang sản phẩm và giỏ hàng demo; chưa kết nối nền tảng ecommerce, thanh toán, đơn hàng, SAM/MHR/PyTorch hay Mix & Match.
 
 Máy hiện tại dùng NVIDIA MX330 2GB; bản này không cần CUDA/Java hoặc dịch vụ AI trả phí. Python riêng: `.runtime/python`; interpreter: `backend/.venv/Scripts/python.exe`.
 

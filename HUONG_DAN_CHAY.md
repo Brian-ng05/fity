@@ -1,3 +1,5 @@
+> Cập nhật storefront 12/10/2026: người dùng đã chọn trang mua sắm demo có sản phẩm và module tìm size. Route / là cửa hàng minh họa, /scan giữ công cụ kỹ thuật. Đọc COMMERCE_HANDOFF.md cho source và phạm vi mới.
+
 # Chạy MORPH AI trên máy của bạn
 
 Bản làm việc chính nằm ở **D:\MORPH-AI**. Frontend và backend là hai source riêng, có dependencies và lệnh chạy riêng:

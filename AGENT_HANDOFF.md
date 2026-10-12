@@ -1,10 +1,12 @@
-﻿# MORPH AI — bàn giao agent
+> Cập nhật storefront 12/10/2026: người dùng đã chọn trang mua sắm demo có sản phẩm và module tìm size. Route / là cửa hàng minh họa, /scan giữ công cụ kỹ thuật. Đọc COMMERCE_HANDOFF.md cho source và phạm vi mới.
+
+# MORPH AI — bàn giao agent
 
 Cập nhật 12/10/2026. Source duy nhất cần sửa: `D:\MORPH-AI`. Giữ `frontend` và `backend` riêng. Bản Documents/Codex cũ chỉ để tham khảo. Đọc AGENTS.md, README.md, HUONG_DAN_CHAY.md, VERIFICATION.md trước khi làm tiếp.
 
 ## Mục tiêu và quyết định
 
-Demo cho fashion SME/startup: camera hướng dẫn liên tục, chụp hai góc → ước lượng số đo → avatar body fit → gợi ý size. Người dùng đã chọn thêm size và camera hướng dẫn tư thế. Giữ giao diện sáng tiếng Việt và thiết kế ban đầu. Không ecommerce, billing, Mix & Match hoặc public deployment trong scope.
+Demo cho fashion SME/startup: trang sản phẩm → camera hướng dẫn liên tục, chụp hai góc → ước lượng số đo → avatar body fit → gợi ý size → áp dụng size → giỏ hàng demo. Người dùng đã chọn trang mua sắm và yêu cầu refactor giao diện. Thiết kế mới theo DESIGN.md; /scan giữ công cụ kỹ thuật. Chưa kết nối nền tảng ecommerce, thanh toán, đơn hàng, Mix & Match hoặc public deployment.
 
 ## Môi trường và chạy
 
@@ -24,7 +26,8 @@ Demo cho fashion SME/startup: camera hướng dẫn liên tục, chụp hai góc
 | frontend/components/CameraCapture.tsx | Re-export GuidedCamera |
 | frontend/components/BodyViewer.tsx | Mesh GLB, vật liệu/normal, bốn góc xem, vòng contour thật, nhãn DOM ngoài Canvas |
 | frontend/components/SizeAdvice.tsx | Bảng khoảng số đo cơ thể minh họa hoặc nhãn hàng tự nhập |
-| frontend/app/page.tsx | Hai ảnh, chiều cao, consent, scan/poll/export/delete, viewer và kết quả |
+| frontend/app/page.tsx | Trang mua sắm; components/shop và lib chứa module tìm size/giỏ hàng |
+| frontend/app/scan/page.tsx | Công cụ kỹ thuật: ảnh, chiều cao, consent, scan/poll/export/delete, viewer và kết quả |
 | frontend/app/scan-review.css | Camera responsive, legend, góc xem, size form |
 | backend/app/reconstruction.py | Observe pose/mask, profile hai góc, biến dạng template, engine v3, export GLB normals |
 | backend/app/measurements.py | Chu vi elip từ ảnh, contour kín thật, fit và residual |
