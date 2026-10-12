@@ -2,11 +2,13 @@
 import {useState,useEffect,useRef} from "react";
 type Health = { ready: boolean; engine: string; message: string };
 type Measurements = { height_cm?: number; chest_cm?: number; waist_cm?: number; hip_cm?: number; shoulder_width_cm?: number; inseam_cm?: number | null };
-type BodyProfile = { fit_status?: string; max_fit_error_cm?: number; note?: string; sections?: {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]}[] };
-type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; stage: string; error?: string; model_url?: string; warnings?: string[]; measurements?: Measurements; body_profile?: BodyProfile; elapsed_seconds?: number };
+export type MeasurementDetail = {key:string;label:string;value_cm:number|null;source:"user_input"|"photo_estimate"|"photo_with_prior"|"template_model"|"unavailable";color:string;points_m:[number,number,number][]};
+type BodyProfile = { capture_mode?:string; measurement_details?:MeasurementDetail[]; fit_status?: string; max_fit_error_cm?: number; note?: string; sections?: {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]}[] };
+export type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; stage: string; error?: string; model_url?: string; warnings?: string[]; measurements?: Measurements; body_profile?: BodyProfile; elapsed_seconds?: number };
 type Slot = "front" | "side";
 
 export function useBodyScan() {
+  const [captureMode,setCaptureMode]=useState<"upper_body"|"full_body">("upper_body");
   const [front, setFront] = useState<File | null>(null);
   const [side, setSide] = useState<File | null>(null);
   const [height, setHeight] = useState("170");
@@ -85,6 +87,7 @@ export function useBodyScan() {
         setJob(null);
       }
       const body = new FormData(); body.append("front", front); body.append("side", side); body.append("height_cm", height); body.append("consent", "true");
+      body.append("capture_mode",captureMode);
       const r = await fetch("/api/scans", { method: "POST", body });
       const data = await r.json();
       if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Không gửi được ảnh. Hãy kiểm tra dữ liệu và thử lại.");
@@ -101,5 +104,5 @@ export function useBodyScan() {
     finally { setDeleting(false); }
   }
 
-  return {front,side,height,setHeight,consent,setConsent,health,error,setError,job,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,clear,checkHealth};
+  return {captureMode,setCaptureMode,front,side,height,setHeight,consent,setConsent,health,error,setError,job,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,clear,checkHealth};
 }

@@ -21,7 +21,7 @@ from .measurements import closed_torso_section, estimate_from_profiles, fit_meas
 
 MODEL_PATH = MODELS / "pose_landmarker_full.task"
 TEMPLATE_PATH = MODELS / "body-template.obj"
-ENGINE = "mediapipe-two-photo-fit-v3"
+ENGINE = "mediapipe-two-photo-fit-v4"
 
 _detector = None
 _detector_lock = threading.Lock()
@@ -64,6 +64,7 @@ class Observation:
     top: int
     bottom: int
     height: float
+    capture_mode: str = "full_body"
 
 
 def readiness() -> tuple[bool, str]:
@@ -86,7 +87,7 @@ def segmentation_mask(array: np.ndarray) -> np.ndarray:
     return array > 0.55
 
 
-def observe(image: np.ndarray, detector, name: str) -> Observation:
+def observe(image: np.ndarray, detector, name: str, capture_mode: str = "full_body") -> Observation:
     import mediapipe as mp
     result = detector.detect(mp.Image(image_format=mp.ImageFormat.SRGB, data=image))
     if not result.pose_landmarks or not result.segmentation_masks:
@@ -106,10 +107,36 @@ def observe(image: np.ndarray, detector, name: str) -> Observation:
     h, w = mask.shape
     if bottom - top < h * 0.42:
         raise InvalidPhoto(f"Ảnh {name}: người quá nhỏ. Hãy tiến gần camera hơn.")
-    if top < 3 or bottom >= h - 3 or xx.min() < 2 or xx.max() >= w - 2:
+    if capture_mode == "full_body" and (top < 3 or bottom >= h - 3 or xx.min() < 2 or xx.max() >= w - 2):
         raise InvalidPhoto(f"Ảnh {name}: cơ thể chạm mép ảnh. Chụp lại để đủ đầu, tay và bàn chân.")
     points = np.array([[p.x * w, p.y * h] for p in result.pose_landmarks[0]])
     visibility = np.array([p.visibility for p in result.pose_landmarks[0]])
+    if not np.isfinite(points).all():
+        raise InvalidPhoto("Không đọc được các mốc cơ thể. Hãy chụp lại.")
+    if capture_mode == "upper_body":
+        # Missing legs must never be interpreted as the person's full pixel height.
+        # Scale is explicitly inferred from the template shoulder-to-hip proportion.
+        shoulder = points[[11, 12]].mean(axis=0)
+        hip = points[[23, 24]].mean(axis=0)
+        torso = hip[1] - shoulder[1]
+        visible = visibility[[11, 12, 23, 24]]
+        if name == "chính diện":
+            reliable = min(visible) >= .55
+        else:
+            reliable = max(min(visibility[[11, 23]]), min(visibility[[12, 24]])) >= .55
+        if not reliable or torso < h * .2 or top < 3 or not .08*h < shoulder[1] < .65*h or not shoulder[1] < hip[1] < h*.98:
+            raise InvalidPhoto("Cần thấy đầu, hai vai, eo và cạp quần/hông trên. Không cần chụp chân; lùi máy vừa đủ để thấy cạp quần.")
+        if abs(hip[0]-shoulder[0]) > torso*.35:
+            raise InvalidPhoto("Giữ thân thẳng và camera ngang thân; tránh cúi hoặc nghiêng người.")
+        if name == "chính diện" and abs(points[11,1]-points[12,1]) > torso*.2:
+            raise InvalidPhoto("Giữ vai ngang và camera thẳng khi chụp thân trên.")
+        # Need visible torso margins, but cropped hands and legs are allowed.
+        for fraction in (.3, .65, .78):
+            y = int(shoulder[1] + fraction*torso)
+            row = mask[y]
+            if row[:2].any() or row[-2:].any():
+                raise InvalidPhoto("Thân đang chạm cạnh ảnh. Đưa vai và eo vào giữa khung.")
+        return Observation(mask, points, visibility, top, bottom, float(torso/.29), capture_mode)
     # Side-view far limbs can be occluded; inspect the better-visible side only.
     if name == "chính diện":
         required = [11, 12, 23, 24, 25, 26, 27, 28]
@@ -129,12 +156,12 @@ def observe(image: np.ndarray, detector, name: str) -> Observation:
     return Observation(mask, points, visibility, top, bottom, float(bottom - top))
 
 
-def capture_feedback(image: np.ndarray, view: str) -> dict:
+def capture_feedback(image: np.ndarray, view: str, capture_mode: str = "full_body") -> dict:
     """Check sampled camera frames with actual pose detection, not pixel stillness."""
     try:
         detector = get_detector()
         with _detector_lock:
-            obs = observe(image, detector, "chính diện" if view == "front" else "góc nghiêng")
+            obs = observe(image, detector, "chính diện" if view == "front" else "góc nghiêng", capture_mode)
         shoulder_ratio = abs(obs.points[11, 0] - obs.points[12, 0]) / obs.height
         if view == "front" and shoulder_ratio < .12:
             raise InvalidPhoto("Hướng cả hai vai về camera để chụp chính diện.")
@@ -143,7 +170,7 @@ def capture_feedback(image: np.ndarray, view: str) -> dict:
         torso_profile(obs)
         h, w = image.shape[:2]
         landmarks = [[round(float(p[0] / w), 4), round(float(p[1] / h), 4), round(float(v), 3)] for p, v in zip(obs.points, obs.visibility)]
-        return {"ready": True, "message": "Đã nhận diện toàn thân và góc chụp. Giữ yên.", "landmarks": landmarks, "view": view}
+        return {"ready": True, "message": "Đã thấy vai, eo và hông trên. Giữ yên; không cần thấy chân." if capture_mode == "upper_body" else "Đã nhận diện toàn thân và góc chụp. Giữ yên.", "landmarks": landmarks, "view": view, "capture_mode": capture_mode}
     except InvalidPhoto as exc:
         return {"ready": False, "message": str(exc), "landmarks": [], "view": view}
 
@@ -167,8 +194,9 @@ def torso_profile(obs: Observation) -> tuple[np.ndarray, np.ndarray]:
     if hip[1] - shoulder[1] < obs.height * 0.15:
         raise InvalidPhoto("Không xác định được vùng thân. Hãy đứng thẳng và chụp lại.")
     fractions = np.linspace(0.12, 1.12, 35)
-    rows = shoulder[1] + fractions * (hip[1] - shoulder[1])
-    centers = shoulder[0] + fractions * (hip[0] - shoulder[0])
+    sampled = np.minimum(fractions, .78) if obs.capture_mode == "upper_body" else fractions
+    rows = shoulder[1] + sampled * (hip[1] - shoulder[1])
+    centers = shoulder[0] + sampled * (hip[0] - shoulder[0])
     widths = []
     for row, center in zip(rows, centers):
         local = [center_run_width(obs.mask, row + d, center) for d in (-2, -1, 0, 1, 2)]
@@ -245,12 +273,12 @@ def deform_template(mesh: trimesh.Trimesh, fractions: np.ndarray, front_width: n
     return mesh
 
 
-def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destination: Path, report: Callable[[str], None]) -> tuple[list[str], dict[str, float | None], dict]:
+def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destination: Path, report: Callable[[str], None], capture_mode: str = "full_body") -> tuple[list[str], dict[str, float | None], dict]:
     report("Đang nhận diện cơ thể trong hai ảnh…")
     detector = get_detector()
     with _detector_lock:
-        frontal = observe(front, detector, "chính diện")
-        lateral = observe(side, detector, "góc nghiêng")
+        frontal = observe(front, detector, "chính diện", capture_mode)
+        lateral = observe(side, detector, "góc nghiêng", capture_mode)
     front_shoulders = abs(frontal.points[11, 0] - frontal.points[12, 0]) / frontal.height
     side_shoulders = abs(lateral.points[11, 0] - lateral.points[12, 0]) / lateral.height
     if front_shoulders < 0.12:
@@ -260,18 +288,36 @@ def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destinati
     report("Đang khớp đường viền và dựng bề mặt 3D…")
     fractions, widths = torso_profile(frontal)
     _, depths = torso_profile(lateral)
-    mesh = deform_template(read_template(), fractions, widths, depths, height_cm)
+    template = read_template()
+    if capture_mode == "upper_body":
+        # Hip silhouette is not observed. Restore template widths for those rows,
+        # and mark the resulting hip as model-only rather than a photo estimate.
+        for i in np.flatnonzero(fractions > .78):
+            _, curve = closed_torso_section(template, float(.805-fractions[i]*.29))
+            blend = min(1., (fractions[i]-.78)/.17)
+            widths[i] = widths[i]*(1-blend)+np.ptp(curve[:,0])*blend
+            depths[i] = depths[i]*(1-blend)+np.ptp(curve[:,2])*blend
+    mesh = deform_template(template, fractions, widths, depths, height_cm)
     report("Đang trích xuất thông số kích thước cơ thể…")
     measurements, targets = estimate_from_profiles(fractions, widths, depths, height_cm, front_shoulders)
     report("Đang khớp avatar theo các vòng ước lượng…")
     mesh, profile = fit_measurement_targets(mesh, targets, height_cm)
+    profile["capture_mode"] = capture_mode
+    profile["scale_method"] = "height_and_template_torso_ratio" if capture_mode == "upper_body" else "height_and_full_silhouette"
+    if capture_mode == "upper_body":
+        measurements["hip_cm"] = None
+        profile["measurement_method"] = "upper_body_ellipse_with_template_scale_v1"
+    from .report import measurement_report
+    profile["measurement_details"] = measurement_report(mesh, measurements, profile, height_cm)
     report("Đang hoàn thiện file 3D…")
     mesh.export(destination, file_type="glb", include_normals=True)
     warnings = [
         "Phần thân được điều chỉnh theo đường viền hai ảnh trên mẫu cơ thể có sẵn. Đây là hình thể ước lượng, không phải bản sao 3D chính xác.",
-        "Ngực/eo/mông được ước lượng từ bề rộng và độ sâu hai ảnh với giả định lát cắt elip. Chưa kiểm chứng sai số trên người thật.",
+        "Ngực/eo được ước lượng từ bề rộng và độ sâu hai ảnh với giả định lát cắt elip; mông giữ theo mẫu." if capture_mode == "upper_body" else "Ngực/eo/mông được ước lượng từ bề rộng và độ sâu hai ảnh với giả định lát cắt elip. Chưa kiểm chứng sai số trên người thật.",
         "Chiều cao do bạn nhập; rộng vai là khoảng cách hai mốc vai trên ảnh. Chưa đủ cơ sở đo inseam nên không xuất số này.",
         "Đầu, khuôn mặt và bàn tay/chân giữ theo mẫu.",
         "Biên dạng thân được làm mượt qua ba vùng đo trên mẫu có sẵn; chưa tái tạo đầy đủ tư thế hoặc phân bố mô cơ thể.",
     ]
+    if capture_mode == "upper_body":
+        warnings.insert(0, "Chế độ webcam thân trên: tỷ lệ cm suy ra từ chiều cao và tỷ lệ vai–hông của mẫu. Ngực/eo phụ thuộc giả định này; mông và chân không được đo từ ảnh. Không dùng cho may đo.")
     return warnings, measurements, profile

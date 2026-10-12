@@ -43,7 +43,7 @@ def estimate_from_profiles(fractions, widths, depths, height_cm, shoulder_ratio)
     return values, targets
 
 
-def closed_torso_section(mesh, level_m):
+def closed_torso_section(mesh, level_m, center_x_m=None):
     """Select a whole closed central loop, excluding detached arm/leg loops.
 
     Never trim segments by x: that creates an open curve and a false perimeter.
@@ -83,13 +83,13 @@ def closed_torso_section(mesh, level_m):
             continue
         curve = np.array([points[n] for n in ordered + [start]])
         # A torso loop spans the body's midline; isolated arms do not.
-        if curve[:, 0].min() >= 0 or curve[:, 0].max() <= 0:
+        if center_x_m is None and (curve[:, 0].min() >= 0 or curve[:, 0].max() <= 0):
             continue
         area = abs(np.sum(curve[:-1, 0] * curve[1:, 2] - curve[1:, 0] * curve[:-1, 2])) / 2
         loops.append((area, curve))
     if not loops:
         raise InvalidPhoto("Không tìm được vòng thân kín trên mô hình. Hãy chụp lại, tay tách khỏi thân.")
-    curve = max(loops, key=lambda item: item[0])[1]
+    curve = max(loops, key=lambda item: item[0])[1] if center_x_m is None else min(loops, key=lambda item: abs(np.mean(item[1][:,0])-center_x_m))[1]
     perimeter_cm = float(np.linalg.norm(np.diff(curve, axis=0), axis=1).sum() * 100)
     return perimeter_cm, curve
 

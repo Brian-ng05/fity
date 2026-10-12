@@ -13,7 +13,9 @@ function beep() {
   oscillator.connect(gain);gain.connect(audio.destination);
   oscillator.onended=()=>{void audio.close();};oscillator.start();oscillator.stop(audio.currentTime+.15);
 }
-export default function GuidedCamera({side,onCapture,onClose}:{side:boolean;onCapture:(file:File)=>void;onClose:()=>void}) {
+export default function GuidedCamera({side,onCapture,onClose,captureMode="full_body"}:{side:boolean;onCapture:(file:File)=>void;onClose:()=>void;captureMode?:"upper_body"|"full_body"}) {
+  const upper=captureMode==="upper_body";
+  const initialFeedback:Feedback={ready:false,message:upper?"Đưa đầu, vai, eo và cạp quần vào khung. Không cần thấy chân.":INITIAL_FEEDBACK.message,landmarks:[]};
   const dialog=useRef<HTMLDialogElement>(null), video=useRef<HTMLVideoElement>(null);
   const alive=useRef(true), taking=useRef(false), manualTimer=useRef<ReturnType<typeof setInterval>|null>(null);
   const soundRef=useRef(false), captureRef=useRef<()=>void>(()=>{});
@@ -23,7 +25,7 @@ export default function GuidedCamera({side,onCapture,onClose}:{side:boolean;onCa
   const [zoom,setZoom]=useState(1), [zoomBusy,setZoomBusy]=useState(false), [trackingVersion,setTrackingVersion]=useState(0);
   const [ready,setReady]=useState(false), [aiEnabled,setAiEnabled]=useState(false), [sound,setSound]=useState(false);
   const [error,setError]=useState(""), [count,setCount]=useState<number|null>(null);
-  const [feedback,setFeedback]=useState<Feedback>({ready:false,message:"Bật AI để kiểm tra toàn thân và góc chụp.",landmarks:[]});
+  const [feedback,setFeedback]=useState<Feedback>(initialFeedback);
   const [dimensions,setDimensions]=useState({w:1920,h:1080});
   useEffect(()=>{
     alive.current=true;dialog.current?.showModal();
@@ -31,7 +33,7 @@ export default function GuidedCamera({side,onCapture,onClose}:{side:boolean;onCa
   },[]);
   useEffect(()=>{
     let media:MediaStream|undefined;let cancelled=false;
-    generation.current+=1;taking.current=false;setReady(false);setCount(null);setError("");setZoomRange(null);setZoomBusy(false);setFeedback(INITIAL_FEEDBACK);
+    generation.current+=1;taking.current=false;setReady(false);setCount(null);setError("");setZoomRange(null);setZoomBusy(false);setFeedback(initialFeedback);
     const el=video.current;
     const resize=()=>{if(!cancelled&&el?.videoWidth)setDimensions({w:el.videoWidth,h:el.videoHeight});};
     el?.addEventListener("resize",resize);
@@ -87,12 +89,13 @@ export default function GuidedCamera({side,onCapture,onClose}:{side:boolean;onCa
         const blob=await new Promise<Blob|null>(resolve=>canvas.toBlob(resolve,"image/jpeg",.8));
         if(!blob||stopped)return;
         const body=new FormData();body.set("photo",blob,"frame.jpg");body.set("view",side?"side":"front");body.set("consent","true");
+        body.set("capture_mode",captureMode);
         abort=new AbortController();const timeout=setTimeout(()=>abort?.abort(),5000);let response:Response;
         try{response=await fetch("/api/capture-check",{method:"POST",body,signal:abort.signal});}finally{clearTimeout(timeout);}
         const data=await response.json();if(stopped)return;
         if(!response.ok)throw new Error(typeof data.detail==="string"?data.detail:"Chưa kết nối được hướng dẫn AI.");
         const result=data as Feedback;setFeedback(result);setError("");
-        const visible=[11,12,23,24,25,26,27,28].filter(i=>result.landmarks[i]?.[2]>.55&&(previous?.[i]?.[2]||0)>.55);
+        const visible=(upper?[0,11,12,23,24]:[11,12,23,24,25,26,27,28]).filter(i=>result.landmarks[i]?.[2]>.55&&(previous?.[i]?.[2]||0)>.55);
         const motion=previous&&visible.length>=4?visible.reduce((n,i)=>n+Math.hypot(result.landmarks[i][0]-previous![i][0],result.landmarks[i][1]-previous![i][1]),0)/visible.length:Infinity;
         previous=result.ready?result.landmarks:null;
         if(result.ready&&motion<.018){
@@ -103,29 +106,29 @@ export default function GuidedCamera({side,onCapture,onClose}:{side:boolean;onCa
       if(!stopped)next=setTimeout(check,500);
     }
     void check();return()=>{stopped=true;abort?.abort();clearTimeout(next);setCount(null);};
-  },[ready,aiEnabled,side,deviceId,attempt,zoomBusy,trackingVersion]);
+  },[ready,aiEnabled,side,deviceId,attempt,zoomBusy,trackingVersion,captureMode]);
   function manualCapture(){
     if(count!==null||taking.current)return;let remaining=3;setCount(remaining);
     manualTimer.current=setInterval(()=>{remaining-=1;if(remaining>0)setCount(remaining);else{if(manualTimer.current)clearInterval(manualTimer.current);setCount(null);captureRef.current();}},1000);
   }
   return <dialog ref={dialog} className="camera-dialog" onCancel={onClose} aria-labelledby="camera-title">
     <div className="dialog-title"><h2 id="camera-title">Chụp {side?"góc nghiêng (02)":"chính diện (01)"}</h2><button className="icon-button" onClick={onClose} aria-label="Đóng camera"><X size={20}/></button></div>
-    <p>{side?"Xoay người 90°, tay hơi phía sau thân, giữ đủ đầu và chân trong ảnh.":"Đứng thẳng, hướng hai vai về camera, tay hơi tách thân. Giữ đủ đầu và chân trong ảnh."}</p>
+    <p>{upper?(side?"Xoay thân 90°, tay hơi ra sau để thấy đường eo. Chụp từ đầu đến cạp quần; không cần thấy chân.":"Hướng hai vai về camera, tay hơi tách thân. Lấy từ đầu đến cạp quần; không cần thấy chân."):(side?"Xoay người 90°, tay hơi phía sau thân, giữ đủ đầu và chân trong ảnh.":"Đứng thẳng, hướng hai vai về camera, tay hơi tách thân. Giữ đủ đầu và chân trong ảnh.")}</p>
     <div className="camera-layout"><div className="camera-preview-column">
     <div className="camera-frame" style={{aspectRatio:`${dimensions.w}/${dimensions.h}`}}><video ref={video} playsInline muted/>
       <svg className="pose-overlay" viewBox={`0 0 ${dimensions.w} ${dimensions.h}`} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         <rect x={dimensions.w*.035} y={dimensions.h*.04} width={dimensions.w*.93} height={dimensions.h*.92} rx={12} fill="none" stroke={aiEnabled&&feedback.ready?"#a6ffca":"#f0f5ed"} strokeOpacity=".7" strokeWidth="2" vectorEffect="non-scaling-stroke" strokeDasharray="10 8"/>
-        {aiEnabled&&EDGES.map(([a,b])=>feedback.landmarks[a]?.[2]>.5&&feedback.landmarks[b]?.[2]>.5?<line key={`${a}-${b}`} x1={feedback.landmarks[a][0]*dimensions.w} y1={feedback.landmarks[a][1]*dimensions.h} x2={feedback.landmarks[b][0]*dimensions.w} y2={feedback.landmarks[b][1]*dimensions.h} stroke="#a6ffca" strokeWidth={3} vectorEffect="non-scaling-stroke"/>:null)}
+        {aiEnabled&&EDGES.filter(([a,b])=>!upper||(a<25&&b<25)).map(([a,b])=>feedback.landmarks[a]?.[2]>.5&&feedback.landmarks[b]?.[2]>.5?<line key={`${a}-${b}`} x1={feedback.landmarks[a][0]*dimensions.w} y1={feedback.landmarks[a][1]*dimensions.h} x2={feedback.landmarks[b][0]*dimensions.w} y2={feedback.landmarks[b][1]*dimensions.h} stroke="#a6ffca" strokeWidth={3} vectorEffect="non-scaling-stroke"/>:null)}
       </svg>
       {!ready&&!error&&<span className="camera-opening" role="status">Đang mở camera…</span>}
       {count!==null&&<span className="countdown" aria-live="polite">{count}</span>}
     </div>
-    <div className={`camera-feedback ${aiEnabled&&feedback.ready?"ready":""}`} role="status">{aiEnabled&&feedback.ready?<CheckCircle2 size={18}/>:<ScanLine size={18}/>}<span>{!ready?"Chờ camera sẵn sàng.":aiEnabled?feedback.message:"Giữ toàn bộ đầu, tay và chân bên trong khung nét đứt."}</span></div>
+    <div className={`camera-feedback ${aiEnabled&&feedback.ready?"ready":""}`} role="status">{aiEnabled&&feedback.ready?<CheckCircle2 size={18}/>:<ScanLine size={18}/>}<span>{!ready?"Chờ camera sẵn sàng.":aiEnabled?feedback.message:initialFeedback.message}</span></div>
     <p className="camera-resolution">{ready?`${dimensions.w} × ${dimensions.h} · Hiển thị trọn khung camera`:"Ảnh chụp giữ nguyên tỷ lệ camera"}</p>
     </div><div className="camera-options">
     <label className="camera-select">Camera<select aria-label="Chọn camera" value={deviceId} disabled={count!==null||zoomBusy} onChange={e=>{setReady(false);setDeviceId(e.target.value);}}><option value="">Tự động · ưu tiên camera sau</option>{devices.map((d,i)=><option key={d.deviceId||i} value={d.deviceId}>{d.label||`Camera ${i+1}`}</option>)}</select></label>
     {zoomRange&&<div className="camera-zoom"><label htmlFor="camera-zoom">Zoom camera <output>{zoom.toFixed(1)}×</output></label><input id="camera-zoom" type="range" min={zoomRange.min} max={zoomRange.max} step={zoomRange.step||.1} value={zoom} disabled={zoomBusy||count!==null||!ready} onChange={e=>void changeZoom(Number(e.target.value))}/><button className="text-button" disabled={zoomBusy||count!==null||!ready} onClick={()=>void changeZoom(zoomRange.min)}>Mở rộng tối đa camera này</button></div>}
-    <p className="camera-distance">Đặt máy cố định, ngang giữa thân. Nếu thiếu đầu hoặc chân, lùi xa hơn; giữ người gần giữa ảnh để giảm méo ở rìa.</p>
+    <p className="camera-distance">{upper?"Webcam laptop: đặt máy vững, chỉnh góc thấy đầu đến cạp quần. Giữ thân thẳng và tay không che eo. Phần chân trên avatar được suy ra theo mẫu.":"Đặt máy cố định, ngang giữa thân. Nếu thiếu đầu hoặc chân, lùi xa hơn; giữ người gần giữa ảnh để giảm méo ở rìa."}</p>
     <label className="smart-toggle"><input type="checkbox" checked={aiEnabled} disabled={!ready||zoomBusy||(!aiEnabled&&count!==null)} onChange={e=>{setAiEnabled(e.target.checked);setCount(null);}}/><ScanLine size={16}/><span>Bật AI hướng dẫn và tự chụp</span></label>
     <p className="camera-disclosure">Bật AI nghĩa là đồng ý gửi các khung hình tới backend để kiểm tra tư thế. Không lưu hồ sơ khung hình; upload có thể dùng file tạm. Máy chỉ tự chụp khi nhận diện đúng góc và giữ yên qua nhiều lần kiểm tra.</p>
     <button className="text-button" onClick={()=>{soundRef.current=!sound;setSound(!sound);}} aria-label={sound?"Tắt âm thanh":"Bật âm thanh"}>{sound?<Volume2 size={16}/>:<VolumeX size={16}/>} Âm chụp: {sound?"bật":"tắt"}</button>

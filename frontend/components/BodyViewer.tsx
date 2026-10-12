@@ -7,13 +7,14 @@ import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
+import type {MeasurementDetail} from "../lib/useBodyScan";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 
 export type Section = {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]};
 const SECTION_COLORS: Record<string,string> = {chest_cm:"#17694c",waist_cm:"#995423",hip_cm:"#365b88",chest:"#17694c",waist:"#995423",hip:"#365b88"};
 const VIEWS = [{label:"Trước",angle:0},{label:"Nghiêng",angle:Math.PI/2},{label:"Sau",angle:Math.PI},{label:"3/4",angle:Math.PI/4}];
 
-function Surface({ object, wireframe, targetHeight, preserveOrigin = false, studio=false }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number; preserveOrigin?: boolean; studio?:boolean }) {
+function Surface({ object, wireframe, targetHeight, preserveOrigin = false, studio=false, technical=false, points=false }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number; preserveOrigin?: boolean; studio?:boolean;technical?:boolean;points?:boolean }) {
   const model = useMemo(() => {
     const copy = object.clone(true);
     const bounds=new THREE.Box3().setFromObject(copy), height=bounds.max.y-bounds.min.y;
@@ -36,7 +37,7 @@ function Surface({ object, wireframe, targetHeight, preserveOrigin = false, stud
           geometry.setAttribute("morphCoord",new THREE.BufferAttribute(coordinates,2));
         }
         const material = new THREE.MeshStandardMaterial({
-          color: studio?"#ffffff":"#a5b5a3",
+          color: technical?"#328f97":studio?"#ffffff":"#a5b5a3",
           vertexColors:false,
           roughness: 0.82,
           metalness: 0.02,
@@ -66,8 +67,13 @@ function Surface({ object, wireframe, targetHeight, preserveOrigin = false, stud
     if (sizeY > 0) {
       copy.scale.setScalar(targetHeight / sizeY);
     }
+    if(points){
+      const cloud=new THREE.Group();copy.updateMatrixWorld(true);
+      copy.traverse(child=>{if(child instanceof THREE.Mesh){const geometry=child.geometry.clone();geometry.applyMatrix4(child.matrixWorld);cloud.add(new THREE.Points(geometry,new THREE.PointsMaterial({color:"#48d2c5",size:.005,sizeAttenuation:true})));child.geometry.dispose();(child.material as THREE.Material).dispose();}});
+      return cloud;
+    }
     return copy;
-  }, [object, targetHeight, preserveOrigin, studio]);
+  }, [object, targetHeight, preserveOrigin, studio,technical,points]);
 
   useEffect(() => {
     model.traverse((child) => {
@@ -79,20 +85,20 @@ function Surface({ object, wireframe, targetHeight, preserveOrigin = false, stud
   }, [model, wireframe]);
 
   useEffect(() => () => model.traverse((child) => {
-    if (child instanceof THREE.Mesh) { (child.material as THREE.Material).dispose();child.geometry.dispose(); }
+    if (child instanceof THREE.Mesh || child instanceof THREE.Points) { (child.material as THREE.Material).dispose();child.geometry.dispose(); }
   }), [model]);
 
   return preserveOrigin ? <group position={[0, 0.025, 0]}><primitive object={model}/></group> : <Center top position={[0, 0.025, 0]}><primitive object={model} /></Center>;
 }
 
-function Sample({ wireframe,studio }: { wireframe: boolean;studio:boolean }) {
+function Sample({ wireframe,studio,technical,points }: { wireframe: boolean;studio:boolean;technical:boolean;points:boolean }) {
   const object = useLoader(OBJLoader, "/sample-body.obj");
-  return <Surface object={object} wireframe={wireframe} targetHeight={1.75} studio={studio}/>;
+  return <Surface object={object} wireframe={wireframe} targetHeight={1.75} studio={studio} technical={technical} points={points}/>;
 }
 
-function Result({ url, wireframe,studio }: { url: string; wireframe: boolean;studio:boolean }) {
+function Result({ url, wireframe,studio,technical,points }: { url: string; wireframe: boolean;studio:boolean;technical:boolean;points:boolean }) {
   const model = useLoader(GLTFLoader, url);
-  return <Surface object={model.scene} wireframe={wireframe} targetHeight={1.75} preserveOrigin studio={studio}/>;
+  return <Surface object={model.scene} wireframe={wireframe} targetHeight={1.75} preserveOrigin studio={studio} technical={technical} points={points}/>;
 }
 
 function MeasurementRings({ heightCm, sections }: { heightCm:number; sections:Section[] }) {
@@ -127,6 +133,7 @@ export default function BodyViewer({
   sections,
   onSelectView,
   studio=false,
+  technical=false, points=false, annotations, selectedMeasurement,
 }: {
   url?: string;
   wireframe: boolean;
@@ -137,25 +144,28 @@ export default function BodyViewer({
   sections?: Section[];
   onSelectView?: () => void;
   studio?:boolean;
+  technical?:boolean;points?:boolean;annotations?:MeasurementDetail[];selectedMeasurement?:string;
 }) {
   const [view,setView]=useState(0),[revision,setRevision]=useState(0);
   useEffect(()=>{setView(0);},[reset]);
   return (
     <div className="body-viewer">
-    <Canvas frameloop={autoRotate?"always":"demand"} dpr={[1, 1.5]} camera={{ position: [0, 0.95, 3.1], fov: 42 }} gl={{ antialias: true, alpha: true }} fallback={<p className="viewer-fallback">Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.</p>}>
+    <Canvas frameloop={autoRotate?"always":"demand"} dpr={[1, 1.5]} camera={{ position: [0, 0.95, 3.1], fov: 42 }} gl={{ antialias: true, alpha: true, preserveDrawingBuffer:technical }} fallback={<p className="viewer-fallback">Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.</p>}>
       <hemisphereLight args={["#fffdf5","#697d6c",1.8]} />
       <directionalLight position={[-3, 4, 5]} intensity={2.2} />
       <directionalLight position={[3, 2, -3]} intensity={1.6} color="#f2f6ed" />
       <Suspense fallback={null}>
-        {url ? <Result url={url} wireframe={wireframe} studio={studio}/> : <Sample wireframe={wireframe} studio={studio}/>}
+        {url ? <Result url={url} wireframe={wireframe} studio={studio} technical={technical} points={points}/> : <Sample wireframe={wireframe} studio={studio} technical={technical} points={points}/>}
       </Suspense>
-      {url && showRings && sections && targetHeightCm && <MeasurementRings heightCm={targetHeightCm} sections={sections}/> }
+      {url && showRings && !technical && sections && targetHeightCm && <MeasurementRings heightCm={targetHeightCm} sections={sections}/> }
+      {technical&&showRings&&annotations&&annotations.filter(m=>m.points_m.length>1).map(m=><Line key={m.key} points={m.points_m.map(p=>p.map(v=>v*1.75/((targetHeightCm||175)/100)) as [number,number,number])} position={[0,.025,0]} color={m.color} lineWidth={selectedMeasurement===m.key?4:1.5} transparent opacity={!selectedMeasurement||selectedMeasurement===m.key?1:.35}/>) }
+      {technical&&<gridHelper args={[6,40,"#244149","#172d34"]} position={[0,-.001,0]}/>}
       <ContactShadows position={[0, 0.01, 0]} opacity={0.5} scale={2} blur={1.2} far={1} />
-      {!studio&&<><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}><ringGeometry args={[0.60, 0.605, 96]} /><meshBasicMaterial color="#bcc9bd" side={THREE.DoubleSide} /></mesh>
+      {!studio&&!technical&&<><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}><ringGeometry args={[0.60, 0.605, 96]} /><meshBasicMaterial color="#bcc9bd" side={THREE.DoubleSide} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.61, 96]} /><meshBasicMaterial color="#ccd7cb" transparent opacity={0.45} /></mesh></>}
       <Controls reset={reset} autoRotate={autoRotate} angle={VIEWS[view].angle} revision={revision} />
     </Canvas>
-    {url&&showRings&&sections&&<div className="body-legend" aria-label="Chu vi trên avatar"><span>Vòng đo trên avatar</span>{sections.map(s=><div key={s.key}><i style={{background:SECTION_COLORS[s.key]||"#17694c"}}/><span>{s.label}</span><strong>{s.model_cm} <small>cm</small></strong></div>)}</div>}
+    {!technical&&url&&showRings&&sections&&<div className="body-legend" aria-label="Chu vi trên avatar"><span>Vòng đo trên avatar</span>{sections.map(s=><div key={s.key}><i style={{background:SECTION_COLORS[s.key]||"#17694c"}}/><span>{s.label}</span><strong>{s.model_cm} <small>cm</small></strong></div>)}</div>}
     <div className="body-view-presets" aria-label="Góc xem cơ thể">{VIEWS.map((v,i)=><button key={v.label} onClick={()=>{setView(i);setRevision(n=>n+1);onSelectView?.();}} aria-label={`Xem ${v.label.toLowerCase()}`} title={`Xem ${v.label.toLowerCase()} · dừng tự xoay`}>{v.label}</button>)}</div>
     </div>
   );

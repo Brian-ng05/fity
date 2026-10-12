@@ -88,7 +88,7 @@ def health():
 
 
 @app.post("/api/capture-check")
-async def check_capture(photo: UploadFile = File(...), view: Literal["front", "side"] = Form(...), consent: bool = Form(False)):
+async def check_capture(photo: UploadFile = File(...), view: Literal["front", "side"] = Form(...), consent: bool = Form(False), capture_mode: Literal["full_body", "upper_body"] = Form("full_body")):
     try:
         if not consent:
             raise HTTPException(400, "Cần đồng ý gửi khung hình tới backend để hướng dẫn AI.")
@@ -102,13 +102,13 @@ async def check_capture(photo: UploadFile = File(...), view: Literal["front", "s
         raise HTTPException(413, "Khung hình hướng dẫn tối đa 2 MB.")
     try:
         frame = decode_photo(data)
-        result = await asyncio.to_thread(capture_feedback, frame, view)
+        result = await asyncio.to_thread(capture_feedback, frame, view, capture_mode) if capture_mode == "upper_body" else await asyncio.to_thread(capture_feedback, frame, view)
     except InvalidPhoto as exc:
         raise HTTPException(400, str(exc)) from exc
     return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
-def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm: float):
+def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm: float, capture_mode: str = "full_body"):
     started = time.perf_counter()
     with lock:
         if key not in jobs:
@@ -123,7 +123,7 @@ def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm
 
     path = DATA / f"{key}.glb"
     try:
-        result = reconstruct(front_image, side_image, height_cm, path, report)
+        result = reconstruct(front_image, side_image, height_cm, path, report, capture_mode) if capture_mode == "upper_body" else reconstruct(front_image, side_image, height_cm, path, report)
         if isinstance(result, tuple) and len(result) == 3:
             warnings, measurements, profile = result
         elif isinstance(result, tuple) and len(result) == 2:
@@ -160,7 +160,7 @@ def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm
 
 
 @app.post("/api/scans", status_code=202)
-async def create_scan(front: UploadFile = File(...), side: UploadFile = File(...), height_cm: float = Form(..., ge=100, le=230), consent: bool = Form(False)):
+async def create_scan(front: UploadFile = File(...), side: UploadFile = File(...), height_cm: float = Form(..., ge=100, le=230), consent: bool = Form(False), capture_mode: Literal["full_body", "upper_body"] = Form("full_body")):
     if not consent:
         raise HTTPException(400, "Cần đồng ý xử lý ảnh trước khi scan.")
     ready, message = readiness()
@@ -191,7 +191,7 @@ async def create_scan(front: UploadFile = File(...), side: UploadFile = File(...
             raise HTTPException(429, "Hàng đợi đã đầy. Hãy thử lại sau.")
         jobs[key] = Job(id=key)
         response = asdict(jobs[key])
-    executor.submit(process, key, front_image, side_image, height_cm)
+    executor.submit(process, key, front_image, side_image, height_cm, capture_mode)
     return response
 
 

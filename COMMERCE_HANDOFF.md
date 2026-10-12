@@ -1,4 +1,6 @@
-﻿# Storefront integration handoff — 12/10/2026
+> Bản cập nhật mới nhất: đọc UPPER_BODY_HANDOFF.md. Webcam thân trên là mặc định; /scan dùng màn hình kết quả mới, không còn giao diện kỹ thuật cũ.
+
+# Storefront integration handoff — 12/10/2026
 
 ## What changed
 

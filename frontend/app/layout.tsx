@@ -6,10 +6,11 @@ import "@fontsource/be-vietnam-pro/700.css";
 import "./globals.css";
 import "./scan-review.css";
 import "./commerce.css";
+import "./scan-result.css";
 
 export const metadata: Metadata = {
   title: "MORPH Studio — Một lựa chọn vừa bạn",
-  description: "Demo dựng hình thể 3D từ ảnh toàn thân. Xem, xoay và khám phá cơ thể trong không gian 3D.",
+  description: "Demo tìm size và hình thể 3D từ hai ảnh, hỗ trợ webcam thân trên và ảnh toàn thân.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
