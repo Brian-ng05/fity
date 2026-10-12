@@ -11,6 +11,7 @@ Next.js frontend and Python backend in separate source folders, per the ongoing 
 Vietnamese fashion SMEs and startup founders evaluating a body reconstruction demo, including shoppers using laptop webcams to capture their upper body.
 
 ## Product Purpose
+Latest capture flow: camera only, with no upload inputs or pre-scan mannequin. Height and consent → one camera session → pose-gated front countdown → automatic 90-degree turn prompt → side countdown → automatic reconstruction. See CAMERA_FLOW_HANDOFF.md; this supersedes earlier input layouts.
 Demonstrate a Vietnamese fashion product page with an embedded size finder: capture two body views, inspect an estimated 3D body, receive product-specific size advice and apply the selection to a local demo cart. The user explicitly selected this shopping experience on 12 October 2026, then requested upper-body laptop capture and a SnapMeasureAI-inspired result workspace. /scan now runs that same module as a standalone page.
 
 ## Capabilities and Constraints

@@ -7,12 +7,20 @@ import "./globals.css";
 import "./scan-review.css";
 import "./commerce.css";
 import "./scan-result.css";
+import "./capture-flow.css";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "MORPH Studio — Một lựa chọn vừa bạn",
-  description: "Demo tìm size và hình thể 3D từ hai ảnh, hỗ trợ webcam thân trên và ảnh toàn thân.",
+  description: "Cửa hàng thời trang MORPH Studio với công nghệ đối chiếu size và hình thể 3D qua webcam.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return <html lang="vi"><body>{children}</body></html>;
+  return (
+    <html lang="vi">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
 }

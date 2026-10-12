@@ -69,7 +69,7 @@ function Surface({ object, wireframe, targetHeight, preserveOrigin = false, stud
     }
     if(points){
       const cloud=new THREE.Group();copy.updateMatrixWorld(true);
-      copy.traverse(child=>{if(child instanceof THREE.Mesh){const geometry=child.geometry.clone();geometry.applyMatrix4(child.matrixWorld);cloud.add(new THREE.Points(geometry,new THREE.PointsMaterial({color:"#48d2c5",size:.005,sizeAttenuation:true})));child.geometry.dispose();(child.material as THREE.Material).dispose();}});
+      copy.traverse(child=>{if(child instanceof THREE.Mesh){const geometry=child.geometry.clone();geometry.applyMatrix4(child.matrixWorld);cloud.add(new THREE.Points(geometry,new THREE.PointsMaterial({color:"#48d2c5",size:.005,sizeAttenuation:true})));}});
       return cloud;
     }
     return copy;
@@ -160,7 +160,7 @@ export default function BodyViewer({
       {url && showRings && !technical && sections && targetHeightCm && <MeasurementRings heightCm={targetHeightCm} sections={sections}/> }
       {technical&&showRings&&annotations&&annotations.filter(m=>m.points_m.length>1).map(m=><Line key={m.key} points={m.points_m.map(p=>p.map(v=>v*1.75/((targetHeightCm||175)/100)) as [number,number,number])} position={[0,.025,0]} color={m.color} lineWidth={selectedMeasurement===m.key?4:1.5} transparent opacity={!selectedMeasurement||selectedMeasurement===m.key?1:.35}/>) }
       {technical&&<gridHelper args={[6,40,"#244149","#172d34"]} position={[0,-.001,0]}/>}
-      <ContactShadows position={[0, 0.01, 0]} opacity={0.5} scale={2} blur={1.2} far={1} />
+      {!points && <ContactShadows position={[0, 0.01, 0]} opacity={0.5} scale={2} blur={1.2} far={1} />}
       {!studio&&!technical&&<><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}><ringGeometry args={[0.60, 0.605, 96]} /><meshBasicMaterial color="#bcc9bd" side={THREE.DoubleSide} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.61, 96]} /><meshBasicMaterial color="#ccd7cb" transparent opacity={0.45} /></mesh></>}
       <Controls reset={reset} autoRotate={autoRotate} angle={VIEWS[view].angle} revision={revision} />

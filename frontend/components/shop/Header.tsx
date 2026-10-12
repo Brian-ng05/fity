@@ -1,0 +1,167 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { Heart, Search, ShoppingBag, Menu, X, ArrowRight } from "lucide-react";
+import { useCart } from "../../lib/CartContext";
+import { CATEGORIES } from "../../lib/catalog";
+
+export default function Header() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const { totalQuantity, setIsCartOpen, wishlist, setIsWishlistOpen } = useCart();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const currentCategory = searchParams?.get("category") || "";
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/?q=${encodeURIComponent(searchQuery.trim())}#catalog`);
+      setSearchOpen(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="shop-announcement">
+        Trải nghiệm mua sắm MORPH Studio · Dữ liệu sản phẩm & kích thước thử nghiệm · Không thanh toán thật
+      </div>
+
+      <header className="shop-header">
+        <button
+          className="mobile-nav-toggle shop-icon"
+          aria-label={mobileMenuOpen ? "Đóng menu" : "Mở menu"}
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+
+        <Link href="/" className="shop-logo" aria-label="MORPH Studio trang chủ">
+          MORPH<span>STUDIO</span>
+        </Link>
+
+        <nav aria-label="Danh mục sản phẩm" className="desktop-nav">
+          <Link
+            href="/"
+            className={pathname === "/" && !currentCategory ? "active" : ""}
+          >
+            Tất cả
+          </Link>
+          {CATEGORIES.map((cat) => {
+            const isActive = pathname === "/" && currentCategory === cat.key;
+            return (
+              <Link
+                key={cat.key}
+                href={`/?category=${cat.key}#catalog`}
+                className={isActive ? "active" : ""}
+              >
+                {cat.name}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="header-actions">
+          {searchOpen ? (
+            <form onSubmit={handleSearchSubmit} className="header-search-form">
+              <input
+                type="text"
+                placeholder="Tìm áo, quần, váy..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+                className="header-search-input"
+              />
+              <button type="submit" className="shop-icon" aria-label="Tìm kiếm">
+                <Search size={18} />
+              </button>
+              <button
+                type="button"
+                className="shop-icon"
+                onClick={() => setSearchOpen(false)}
+                aria-label="Đóng tìm kiếm"
+              >
+                <X size={18} />
+              </button>
+            </form>
+          ) : (
+            <button
+              className="shop-icon header-search-btn"
+              aria-label="Tìm kiếm sản phẩm"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search size={20} />
+            </button>
+          )}
+
+          <button
+            className="shop-icon header-wishlist-btn"
+            aria-label={`Sản phẩm yêu thích (${wishlist.length})`}
+            onClick={() => setIsWishlistOpen(true)}
+          >
+            <Heart size={20} fill={wishlist.length > 0 ? "currentColor" : "none"} />
+            {wishlist.length > 0 && <span className="action-badge">{wishlist.length}</span>}
+          </button>
+
+          <button
+            className="shop-bag"
+            aria-label={`Mở giỏ hàng, ${totalQuantity} sản phẩm`}
+            onClick={() => setIsCartOpen(true)}
+          >
+            <ShoppingBag size={21} />
+            <span>Giỏ hàng</span>
+            <b>{totalQuantity}</b>
+          </button>
+        </div>
+      </header>
+
+      {/* Mobile Drawer Menu */}
+      {mobileMenuOpen && (
+        <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)}>
+          <div className="mobile-menu-content" onClick={(e) => e.stopPropagation()}>
+            <div className="mobile-menu-header">
+              <span className="shop-logo">
+                MORPH<span>STUDIO</span>
+              </span>
+              <button
+                className="shop-icon"
+                onClick={() => setMobileMenuOpen(false)}
+                aria-label="Đóng menu"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="mobile-menu-links">
+              <Link
+                href="/"
+                onClick={() => setMobileMenuOpen(false)}
+                className={!currentCategory ? "active" : ""}
+              >
+                Tất cả sản phẩm
+              </Link>
+              {CATEGORIES.map((cat) => (
+                <Link
+                  key={cat.key}
+                  href={`/?category=${cat.key}#catalog`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={currentCategory === cat.key ? "active" : ""}
+                >
+                  {cat.name}
+                </Link>
+              ))}
+              <div className="mobile-menu-divider" />
+              <Link href="/scan" onClick={() => setMobileMenuOpen(false)}>
+                Công cụ scan 3D độc lập <ArrowRight size={15} />
+              </Link>
+            </nav>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}

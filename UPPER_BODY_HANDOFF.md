@@ -1,3 +1,5 @@
+> Flow mới nhất: CAMERA_FLOW_HANDOFF.md — chỉ camera, tự chụp chính diện → xoay 90° → tự chụp nghiêng; không upload hoặc hình nộm trước scan.
+
 # MORPH — webcam thân trên và kết quả 3D
 
 Cập nhật 12/10/2026. Source chính: `D:\MORPH-AI\frontend` và `D:\MORPH-AI\backend`. Tài liệu này thay thế mô tả cũ bắt buộc toàn thân trong các handoff trước.

@@ -23,6 +23,9 @@ colors:
   scan-accent: "#38d1c1"
   scan-selected-ink: "#7ff1e3"
   scan-data: "#141f27"
+  capture-background: "#0d171d"
+  capture-accent: "#26cbb6"
+  capture-text: "#e9f0f2"
 typography:
   display:
     fontFamily: "Be Vietnam Pro, sans-serif"
@@ -139,11 +142,11 @@ The result list uses compact labels and source annotations, while the data grid 
 
 ## Layout
 
-The storefront has a maximum width of 1440px, desktop gutters of 5%, and a product grid of 1.18:1 with a 7% gap. At 760px it becomes a single column with 6% gutters. The capture dialog is at most 1180px, with a form and preview side by side, and becomes a full-height single-column dialog on mobile.
+The storefront has a maximum width of 1440px, desktop gutters of 5%, and a product grid of 1.18:1 with a 7% gap. At 760px it becomes a single column with 6% gutters. Scan preparation uses a centered 900px column with a three-step explanation, height and framing fields, consent, and one camera action. Its dialog is at most 960px; the active camera dialog expands to 1080px. There is no sample mannequin or upload column. On mobile, the steps and fields stack vertically.
 
 The result dialog expands to 1380px and 96vw; standalone scan content has a 1500px maximum. On desktop, the workspace has a 265px measurement column and a flexible 650px-tall 3D stage. The list sits to the left of the model and tools sit on the right. Below it, the size action precedes a flat four-column measurement grid. At 900px the list becomes 220px and the data grid has three columns. At 650px the stage appears first, tools wrap into rows above the canvas, the measurement list follows, and the data grid has two columns. The mobile canvas is 490px tall in the current implementation.
 
-Camera preview follows the device's intrinsic aspect ratio with contained video and aligned pose overlays. Upper-body mode requires head through waistband and entered height, making laptop capture possible without feet. Keep full-body capture as an explicit alternative. Capture instructions must match the selected mode.
+Camera preview follows the device's intrinsic aspect ratio with contained video, a thin frame marker, centered countdown and bottom instructions. Upper-body mode requires head through waistband and entered height, making laptop capture possible without feet. Keep full-body framing as an explicit camera alternative. Capture instructions must match the selected mode.
 
 ## Elevation & Depth
 
@@ -163,7 +166,7 @@ The primary action is a full-width forest button with a 52px minimum height. The
 
 ### Capture fields and camera
 
-Two contained-image upload areas represent front and side views. The height field stays visibly labeled with centimeters. Upper-body mode is the default; its help text explicitly says feet are unnecessary. AI guidance is opt-in, shows readiness and countdown, and preserves manual capture and upload paths. Camera choice and hardware zoom appear only when available. Preview imagery must retain the camera's full frame rather than cropping it into a portrait mask.
+Camera is the only input path. Height remains visibly labeled with centimeters; upper-body framing is the default. Consent precedes camera activation and covers posture frames and the final pair. One stream handles both views: start, stable-pose check, five-second front countdown, four-second turn instruction, stable side-pose check, five-second side countdown, then automatic reconstruction. Cancel closes the stream and discards the partial pair. Camera selection is available before starting. No file inputs, manual single-frame capture, or sample mannequin appear before scanning. Preview imagery retains the full camera frame rather than cropping it into a portrait mask.
 
 ### Result workspace
 
@@ -171,7 +174,7 @@ Render a real interactive model with solid, point, and wireframe modes. Keep lef
 
 Measurement rows retain their source labels and cm/in selector. Clicking an annotated row highlights its corresponding contour; rows without geometry cannot select a contour. Missing measurements use an em dash plus an explicit unavailable label, never a fabricated zero. The report currently provides 12 rows: 10 values when all mesh sections succeed and two unavailable length measurements. The exact source contract lives in `.impeccable/surfaces/scan.md`.
 
-The recommendation action applies a candidate size to the illustrative Essential T-shirt. Keep no-match and retry messages in the same region. The model is an estimate, not a scanned identity or simulated garment. The earlier porcelain preview styling may appear during capture, but the completed result uses the dark teal inspection presentation.
+The recommendation action applies a candidate size to the illustrative Essential T-shirt. Keep no-match and retry messages in the same region. The model is an estimate, not a scanned identity or simulated garment. Display the interactive model only after processing succeeds, in the dark teal inspection presentation.
 
 ## Do's and Don'ts
 
@@ -189,3 +192,4 @@ The recommendation action applies a candidate size to the illustrative Essential
 - **Don't** imply validated real-person accuracy, face reconstruction, garment simulation, authentication, payment, or order submission.
 - **Don't** fill missing arm or inside-leg lengths with invented numbers.
 - **Don't** present the earlier generated storefront concept as a screenshot of the running app.
+- **Don't** reintroduce upload inputs or a sample mannequin into scan preparation; the user explicitly requested camera-only capture.

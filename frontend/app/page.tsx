@@ -1,2 +1,5 @@
-import Storefront from "../components/shop/Storefront";
-export default function Page(){return <Storefront/>;}
+import StorefrontHome from "../components/shop/StorefrontHome";
+
+export default function Page() {
+  return <StorefrontHome />;
+}

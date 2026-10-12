@@ -76,8 +76,9 @@ export function useBodyScan() {
     }
     setError(""); (slot === "front" ? setFront : setSide)(file);
   }
-  async function scan() {
-    if (!front || !side || !consent) { setError("Chọn đủ hai ảnh và đồng ý xử lý ảnh trước khi tạo mô hình."); return; }
+  async function scan(captured?: {front:File;side:File}) {
+    const frontPhoto=captured?.front||front,sidePhoto=captured?.side||side;
+    if (!frontPhoto || !sidePhoto || !consent) { setError("Chụp đủ hai góc và đồng ý xử lý ảnh trước khi tạo mô hình."); return; }
     if (!Number.isFinite(Number(height)) || Number(height) < 100 || Number(height) > 230) { setError("Chiều cao cần nằm trong khoảng 100–230 cm."); return; }
     setError(""); setSubmitting(true);
     try {
@@ -86,7 +87,7 @@ export function useBodyScan() {
         if (!deleted.ok && deleted.status !== 404) throw new Error("Chưa xóa được phiên cũ. Kiểm tra kết nối rồi thử lại.");
         setJob(null);
       }
-      const body = new FormData(); body.append("front", front); body.append("side", side); body.append("height_cm", height); body.append("consent", "true");
+      const body = new FormData(); body.append("front", frontPhoto); body.append("side", sidePhoto); body.append("height_cm", height); body.append("consent", "true");
       body.append("capture_mode",captureMode);
       const r = await fetch("/api/scans", { method: "POST", body });
       const data = await r.json();

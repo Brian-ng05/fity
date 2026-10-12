@@ -1,6 +1,6 @@
 ﻿{
     "schemaVersion":  2,
-    "generatedAt":  "2026-10-12T12:34:58.6317446Z",
+    "generatedAt":  "2026-10-12T15:50:00Z",
     "title":  "Design System: MORPH Studio",
     "extensions":  {
                        "colorMeta":  {
@@ -376,7 +376,22 @@
                                            "frontend/app/scan-result.css",
                                            "frontend/app/globals.css",
                                            "frontend/components/shop/ScanResult.tsx"
-                                       ]
+                                       ],
+                       "cameraFlow":  {
+                                          "input":  "camera-only",
+                                          "countdownSeconds":  5,
+                                          "samplePreview":  false,
+                                          "captureBackground":  "#0d171d",
+                                          "sources":  [
+                                                          "frontend/app/capture-flow.css",
+                                                          "frontend/components/shop/CaptureSession.tsx"
+                                                      ],
+                                          "captureAccent":  "#26cbb6",
+                                          "preparationWidth":  "900px",
+                                          "cameraDialogWidth":  "1080px",
+                                          "turnInstructionSeconds":  4,
+                                          "stream":  "one stream across front and side"
+                                      }
                    },
     "components":  [
                        {
@@ -468,7 +483,8 @@
                                     "Don\u0027t claim the unseen legs or template circles were observed by the webcam.",
                                     "Don\u0027t imply validated real-person accuracy, face reconstruction, garment simulation, authentication, payment, or order submission.",
                                     "Don\u0027t fill missing arm or inside-leg lengths with invented numbers.",
-                                    "Don\u0027t present the earlier generated storefront concept as a screenshot of the running app."
+                                    "Don\u0027t present the earlier generated storefront concept as a screenshot of the running app.",
+                                    "Don\u0027t reintroduce upload inputs or a sample mannequin into scan preparation; the user explicitly requested camera-only capture."
                                 ]
                   }
 }
