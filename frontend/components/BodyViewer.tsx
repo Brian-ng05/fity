@@ -100,6 +100,7 @@ export default function BodyViewer({
   targetHeightCm,
   showRings,
   sections,
+  onSelectView,
 }: {
   url?: string;
   wireframe: boolean;
@@ -108,9 +109,9 @@ export default function BodyViewer({
   targetHeightCm?: number;
   showRings?: boolean;
   sections?: Section[];
+  onSelectView?: () => void;
 }) {
-  const [view,setView]=useState(0),[revision,setRevision]=useState(0),[paused,setPaused]=useState(false);
-  useEffect(()=>{setPaused(false);},[autoRotate]);
+  const [view,setView]=useState(0),[revision,setRevision]=useState(0);
   useEffect(()=>{setView(0);},[reset]);
   return (
     <div className="body-viewer">
@@ -125,10 +126,10 @@ export default function BodyViewer({
       <ContactShadows position={[0, 0.01, 0]} opacity={0.5} scale={2} blur={1.2} far={1} />
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}><ringGeometry args={[0.60, 0.605, 96]} /><meshBasicMaterial color="#bcc9bd" side={THREE.DoubleSide} /></mesh>
       <mesh rotation={[-Math.PI / 2, 0, 0]}><circleGeometry args={[0.61, 96]} /><meshBasicMaterial color="#ccd7cb" transparent opacity={0.45} /></mesh>
-      <Controls reset={reset} autoRotate={autoRotate&&!paused} angle={VIEWS[view].angle} revision={revision} />
+      <Controls reset={reset} autoRotate={autoRotate} angle={VIEWS[view].angle} revision={revision} />
     </Canvas>
     {url&&showRings&&sections&&<div className="body-legend" aria-label="Chu vi trên avatar"><span>Vòng đo trên avatar</span>{sections.map(s=><div key={s.key}><i style={{background:SECTION_COLORS[s.key]||"#17694c"}}/><span>{s.label}</span><strong>{s.model_cm} <small>cm</small></strong></div>)}</div>}
-    <div className="body-view-presets" aria-label="Góc xem cơ thể">{VIEWS.map((v,i)=><button key={v.label} onClick={()=>{setView(i);setRevision(n=>n+1);setPaused(true);}} aria-label={`Xem ${v.label.toLowerCase()}`} title={`Xem ${v.label.toLowerCase()} · dừng tự xoay`}>{v.label}</button>)}</div>
+    <div className="body-view-presets" aria-label="Góc xem cơ thể">{VIEWS.map((v,i)=><button key={v.label} onClick={()=>{setView(i);setRevision(n=>n+1);onSelectView?.();}} aria-label={`Xem ${v.label.toLowerCase()}`} title={`Xem ${v.label.toLowerCase()} · dừng tự xoay`}>{v.label}</button>)}</div>
     </div>
   );
 }

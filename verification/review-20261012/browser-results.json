@@ -2,15 +2,14 @@
   "fixture": "synthetic mannequin camera feed; not a real-person accuracy test",
   "mode": "Next production build",
   "errors": [],
-  "consoleErrors": [
-    "Failed to load resource: the server responded with a status of 404 (Not Found)"
-  ],
+  "consoleErrors": [],
   "permissionRetry": true,
   "cameraSwitchStopsOldTracks": true,
   "zoomCapabilities": true,
   "noZoomFallback": true,
   "nativeAspect": true,
   "viewerPresets": true,
+  "rotationPresetStateSynced": true,
   "emptyCameraRejected": true,
   "cameraTracksStopped": true,
   "frontAndSideAutoCapture": true,

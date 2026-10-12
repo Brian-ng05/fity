@@ -1,37 +1,43 @@
-# Trạng thái kiểm tra — 2026-10-09
+﻿# Kết quả kiểm tra — 12/10/2026
 
-Source chính: `D:\MORPH-AI`. Kết quả bên dưới phân biệt kiểm tra phần mềm với kiểm chứng độ chính xác scan.
+Source: `D:\MORPH-AI`. Báo cáo này thay thế trạng thái kiểm tra 09–10/10.
 
-## Đã xác nhận
+## Đã chạy thành công
 
-- Python 3.11.17 và venv được tạo tại D; `pyvenv.cfg` trỏ đúng `.runtime/python` trên D.
-- `pip check`: No broken requirements found.
-- Backend: **9 tests passed**, một warning của Starlette về TestClient/httpx; không ảnh hưởng kết quả. Test API có mock reconstruction, không phải benchmark AI.
-- Frontend typecheck đã pass. Build production trên D đã pass trước sửa aria-label; đang kiểm tra lại build cuối, xem ghi chú cập nhật bên dưới.
-- Browser trên Chrome headless: desktop 1440×1024 và mobile 390×844; không page error, không tràn ngang, wireframe/rotation/reset và privacy disclosure hoạt động. Mô hình hiển thị đủ đầu và bàn chân.
-- Review frontend độc lập: SHIP trong phạm vi demo sau bổ sung tên truy cập cho nút Khối đặc/Khung lưới. Chữ phụ nhỏ và nav mobile xuống dòng là điểm cải thiện sau.
-- Pipeline thật qua API, dùng **hai ảnh render mannequin tổng hợp**: MediaPipe → silhouette → biến dạng template → xuất/tải GLB đã completed. Một lần đo 2,73 giây; đây không phải cam kết tốc độ cho ảnh người thật.
-- File GLB của lần thử đó dài 536.112 byte; Trimesh đọc được một geometry, chiều cao khoảng 1,70000005 m với đầu vào 170 cm.
+- Backend: **27 tests pass**, một StarletteDeprecationWarning về TestClient/httpx. Test geometry gồm contour kín, loại vòng tay, chu vi elip, fit residual, biến dạng ngang đơn điệu, độc lập với gốc độ sâu và chống gai lưng do nhiễu silhouette.
+- Production build Next.js Webpack: **pass**, bao gồm TypeScript, static generation và build traces. Build QA dùng `MORPH_REVIEW=1` (`.next-review`), `BACKEND_URL=http://127.0.0.1:8007`. Log `verification/review-20261012/production-build.log`.
+- Browser Chrome headless trên **Next start production**, FE3107/BE8007: desktop1440×1024, mobile390×844. **Không page error, không console error, không tràn ngang** trong luồng đã kiểm tra.
+- Camera: retry sau từ chối quyền; đổi camera dừng stream cũ; zoom theo capability; fallback khi không hỗ trợ zoom; giữ native aspect; camera trống không tự chụp; đóng camera dừng tracks; tự chụp đủ front và side sau kiểm tra AI.
+- Pipeline MediaPipe thật chạy CPU từ hai ảnh mannequin tổng hợp: scan completed, GLB tải và hiển thị, JSON số đo xuất thành công. Inseam null; có contour kín và fit status.
+- Viewer: bốn góc, khối/lưới, bật/tắt vòng đo; ảnh nghiêng đã xác nhận không còn gai lưng của phiên trước.
+- Size: bảng minh họa và bảng tự nhập, khớp M trong fixture có khoảng phù hợp.
+- Xóa phiên trả204 và giao diện về mô hình mẫu; không còn lỗi removeChild/React root unmount.
 
-## Lỗi đã sửa khi kiểm tra
+## Bằng chứng và tái chạy
 
-- OrbitControls reset đưa góc nhìn về gốc gây cắt mô hình: đã set camera/target rõ ràng.
-- MediaPipe trả mask H×W×1 thay vì H×W: đã chuẩn hóa hai định dạng, thêm regression tests và kiểm tra lại bằng model thật.
-- Polling mất kết nối: nút kiểm tra khởi động lại polling; 404 trả trạng thái tạo scan mới.
-- Copy về file tạm upload trước đây nói chỉ ở RAM: đã sửa mô tả vì UploadFile có thể spool xuống ổ đĩa.
-- Nút chỉ có icon trên mobile: đã có aria-label.
+Thư mục `verification/review-20261012/`: `browser-results.json`, log server/build, desktop/mobile, camera và avatar-side PNG.
 
-## Chưa được kiểm chứng
+Script `verification/scripts/review-ui.cjs` khởi chạy server QA rồi Chrome với video canvas từ fixture `verification/scripts/qa/`. Script dùng Playwright của Codex runtime đã có trên máy (đường dẫn require hiện theo máy này). Không dùng webcam thật, không đọc ảnh cá nhân. Cần build QA trước:
 
-- Chưa thử bộ ảnh người thật đã được cho phép; chưa có ground truth hoặc sai số số đo.
-- Chưa kiểm tra quyền camera và debug F5 trong phiên VS Code tương tác của người dùng. Cấu hình có sẵn, cần Microsoft Python/Python Debugger extension.
-- Chưa public deploy hoặc thử truy cập từ điện thoại khác máy. Server bind localhost.
-- Chưa có SAM/MHR, giữ mặt, texture thật hoặc đo ngực/eo/hông.
+```powershell
+cd D:\MORPH-AI\frontend
+$env:MORPH_REVIEW='1'
+$env:BACKEND_URL='http://127.0.0.1:8007'
+npm.cmd run build
+node D:\MORPH-AI\verification\scripts\review-ui.cjs
+```
 
-Ảnh giao diện và báo cáo máy nằm trong `verification/`. Các ảnh mannequin chỉ là fixture kiểm tra tổng hợp. Không dùng chúng làm bằng chứng scan một người thật.
+Dùng terminal QA riêng; các biến trên không phải cấu hình cho phiên người dùng3000/8000. Chỉ dừng process con do harness tạo. Backend tests: chạy `D:\MORPH-AI\test-backend.ps1`.
 
-## Ghi chú môi trường
+## Phạm vi chưa chứng minh
 
-QA dùng cổng frontend 3107 vì cổng 3000 có dịch vụ khác. Script người dùng vẫn dùng 3000; cần dừng phiên cũ nếu cổng bị chiếm. Không tự dừng tiến trình chưa xác định.
+- Video test là mannequin tổng hợp, không phải người thật. Cấu hình thiết bị/quyền/zoom được mô phỏng để kiểm tra UI cleanup và fallback; chưa xác nhận camera phần cứng từng máy/trình duyệt.
+- Không có dữ liệu đo thước dây đối chứng, không công bố MAE hoặc độ chính xác. Fit residual0cm của fixture chỉ là avatar khớp số ước lượng.
+- Chưa giữ mặt, tái tạo mô mềm, phục dựng photogrammetry hoặc mô phỏng vải. Bảng size chỉ dùng BODY ranges, không suy độ vừa theo chất liệu.
+- Chưa kiểm tra F5 trong VS Code tương tác; cấu hình interpreter/launch có sẵn. Chưa public deploy, auth, nhiều tenant hay camera qua HTTPS trên điện thoại khác máy.
 
-Một lần build lại gặp EPERM khi tạo cache Next.js. Cache cũ được giữ trong `.cache/` thay vì xóa; phần này có thể chiếm thêm dung lượng. Kết quả build cuối sẽ được bổ sung sau khi hoàn tất. Không suy ra server người dùng đã chạy từ việc QA sandbox thành công.
+Các hạn chế build/approval ở lần cũ đã được giải quyết; không còn ghi production build hiện tại là blocked.
+
+## Review độc lập
+
+Review camera/avatar yêu cầu sửa một lỗi trạng thái tự xoay khi chọn góc. Đã chuyển trạng thái về page, viewer và nút dùng cùng giá trị; harness xác nhận chọn góc tắt xoay và một click bật lại. Production build và luồng browser đã chạy lại thành công. Verdict pass: **resolved**, **ship** trong phạm vi finding này; không mở rộng thành chứng nhận độ chính xác AI. Tài liệu extension: DESIGN_EXTENSION_2026-10-12.md.
