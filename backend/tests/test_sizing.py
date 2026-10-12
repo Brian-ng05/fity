@@ -27,3 +27,9 @@ def test_invalid_chart_and_missing_measurements():
     with pytest.raises(ValidationError):
         chart(rows=[{'size':'X','chest_cm':{'min':100,'max':90}}])
     assert recommend_size({'chest_cm':None,'waist_cm':75},chart())['status']=='insufficient_measurements'
+
+
+def test_optional_dimension_in_chart_requires_a_measurement():
+    custom = chart(rows=[{'size':'M','chest_cm':{'min':90,'max':100},
+                         'waist_cm':{'min':70,'max':80},'hip_cm':{'min':90,'max':100}}])
+    assert recommend_size({'chest_cm':95,'waist_cm':75,'hip_cm':None},custom)['status']=='insufficient_measurements'

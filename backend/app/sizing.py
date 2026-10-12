@@ -42,7 +42,8 @@ class SizeChart(BaseModel):
 
 
 def recommend_size(measurements, chart: SizeChart):
-    dimensions = ("chest_cm", "waist_cm") if chart.garment == "top" else ("waist_cm", "hip_cm")
+    dimensions = {key for row in chart.rows for key in ("chest_cm", "waist_cm", "hip_cm")
+                  if getattr(row, key) is not None}
     if any(measurements.get(k) is None for k in dimensions):
         return {"status": "insufficient_measurements", "candidates": [], "message": "Chưa đủ số đo để đối chiếu bảng size."}
     candidates, comparisons = [], []
