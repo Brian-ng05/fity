@@ -54,6 +54,21 @@ GUARD_LEVELS = (.38, .84, .875)
 # labelled as the user's own number, without pretending the avatar measures it.
 RECORDED_ONLY_BANDS = ("shoulder_width_cm", "arm_length_cm", "inseam_cm")
 
+# The manual form no longer asks for these three. Their value is derived from the entered
+# numbers and the height so the avatar still carries a plausible neck, head and ankle.
+# Demo proportions, NOT validated anthropometry; a value the caller does supply wins.
+DERIVED_BANDS = ("neck_cm", "head_cm", "ankle_cm")
+DERIVED_LABELS = {"neck_cm": "vòng cổ", "head_cm": "vòng đầu", "ankle_cm": "vòng cổ chân"}
+# How closely each derived band follows the body scale: the neck follows the torso fairly
+# closely, the head barely at all (it is mostly a function of height), the ankle follows
+# the leg. Exponents below 1 keep every derived value inside the template's own range.
+DERIVED_FOLLOW = {"neck_cm": .55, "head_cm": .20, "ankle_cm": .50}
+# The typed bands whose scale each derived band follows. Empty means "whatever the torso
+# scale is", which is the fallback an unmeasured limb uses.
+DERIVED_SOURCE_BANDS = {"neck_cm": ("chest_cm", "waist_cm", "hip_cm"),
+                        "head_cm": ("chest_cm", "waist_cm", "hip_cm"),
+                        "ankle_cm": ("thigh_cm", "calf_cm")}
+
 
 def scale_lateral(x, scale, radius):
     """Monotone lateral deformation: scale the trunk and translate outer limbs.
@@ -63,6 +78,41 @@ def scale_lateral(x, scale, radius):
     """
     radius = np.maximum(radius, .01)
     return x + (scale - 1) * radius / np.tanh(1) * np.tanh(x / radius)
+
+
+def smoothstep(x):
+    """C1 ramp: 0 at x <= 0, 1 at x >= 1, zero slope at both ends.
+
+    Used for every region mask. The previous masks were clip() ramps, whose derivative
+    jumps at the edges and so imprints a ridge exactly where a mask starts or stops.
+    """
+    t = np.clip(x, 0., 1.)
+    return t * t * (3. - 2. * t)
+
+
+def c1_profile(knots, values, pad=.05, low=0., high=1.):
+    """Shape-preserving profile through the measurement knots, flat and C1 outside them.
+
+    np.interp is only C0: its slope jumps at every knot, and the knots are exactly the
+    measurement levels, so the surface creases on the rings. Padding the knot list with a
+    duplicate of the end value forces a zero end slope, which reproduces np.interp's
+    "hold the template outside the measured span" behaviour with a continuous derivative.
+
+    Monotone cubic (Fritsch-Carlson, SciPy's PCHIP) never overshoots, so this cannot
+    invent a bulge between two bands.
+    """
+    knots = np.asarray(knots, dtype=float)
+    values = np.asarray(values, dtype=float)
+    order = np.argsort(knots)
+    knots, values = knots[order], values[order]
+    padded_knots, padded_values = list(knots), list(values)
+    if knots[0] - pad >= low:
+        padded_knots.insert(0, knots[0] - pad); padded_values.insert(0, values[0])
+    if knots[-1] + pad <= high:
+        padded_knots.append(knots[-1] + pad); padded_values.append(values[-1])
+    padded_knots = np.asarray(padded_knots)
+    curve = PchipInterpolator(padded_knots, np.asarray(padded_values))
+    return lambda y: curve(np.clip(y, padded_knots[0], padded_knots[-1]))
 
 
 def ellipse_perimeter(width: float, depth: float) -> float:
@@ -197,6 +247,36 @@ def measurement_limits(template, height_cm):
     return {key: (band["min_cm"], band["max_cm"]) for key, band in band_ranges(template, height_cm).items()}
 
 
+def derive_supporting_bands(template, values, height_cm):
+    """Neck, head and ankle girths, computed instead of typed.
+
+    Neither the neck, the head nor the ankle is something one template can be told
+    apart by on its own, so the form no longer asks: each value starts from the
+    template's own girth at that level (already a plausible proportion of the entered
+    height) and is nudged by how the entered numbers compare with the template's. A
+    larger build then gets a larger neck and ankle, without ever leaving the range the
+    template can be scaled to. The head barely moves, because head girth is almost a
+    function of height alone. A value the caller did supply is left untouched.
+    """
+    ranges = band_ranges(template, height_cm)
+
+    def body_scale(keys, fallback):
+        ratios = [values[key] / ranges[key]["base_cm"] for key in keys
+                  if values.get(key) is not None and ranges[key]["base_cm"] > 0]
+        return float(np.mean(ratios)) if ratios else fallback
+
+    torso = body_scale(DERIVED_SOURCE_BANDS["neck_cm"], 1.0)
+    derived = {}
+    for key in DERIVED_BANDS:
+        if values.get(key) is not None:
+            continue
+        scale = body_scale(DERIVED_SOURCE_BANDS[key], torso)
+        band = ranges[key]
+        value = band["base_cm"] * scale ** DERIVED_FOLLOW[key]
+        derived[key] = round(float(min(max(value, band["min_cm"]), band["max_cm"])), 1)
+    return derived
+
+
 def extra_midline_targets(template, values, height_cm):
     """Neck/head targets, on the same ellipse model as the torso bands.
 
@@ -271,12 +351,22 @@ def fit_leg_targets(mesh, targets, height_cm, inconsistent_message):
                 if not MIN_FIT_FACTOR <= factor <= MAX_FIT_FACTOR:
                     raise InvalidPhoto(inconsistent_message)
                 factors.append(factor)
-            profile = PchipInterpolator([0] + levels + [CROTCH_LEVEL], [1] + factors + [1])(np.clip(y, 0, CROTCH_LEVEL))
-            center = np.stack([np.interp(y, levels, [g[1][axis] for g in geometry[sign]]) for axis in (0, 1)], axis=1)
-            radius = np.stack([np.interp(y, levels, [g[2][axis] for g in geometry[sign]]) for axis in (0, 1)], axis=1)
+            # Factor curve: the measured factors, held flat above the thigh so that the
+            # transition back to the template is carried entirely by the smooth crotch fade
+            # instead of by a steep spline segment pinned at the crotch (which bulged the
+            # upper thigh). Below the ankle it returns to the template so the foot is safe.
+            leg_knots = np.concatenate(([0.], levels, [min(1., levels[-1] + .05)]))
+            leg_values = np.concatenate(([1.], factors, [factors[-1]]))
+            profile = PchipInterpolator(leg_knots, leg_values)(np.clip(y, leg_knots[0], leg_knots[-1]))
+            # Centre and half-extents of each loop: shape-preserving and C1, so the region
+            # mask no longer kinks at the thigh/calf/ankle levels.
+            center = np.stack([c1_profile(levels, [g[1][axis] for g in geometry[sign]])(y)
+                               for axis in (0, 1)], axis=1)
+            radius = np.stack([c1_profile(levels, [g[2][axis] for g in geometry[sign]])(y)
+                               for axis in (0, 1)], axis=1)
             inside = np.hypot((vertices[:, 0] - center[:, 0]) / radius[:, 0],
                               (vertices[:, 2] - center[:, 1]) / radius[:, 1])
-            weight = np.clip((1.25 - inside) / .45, 0, 1) * np.clip((CROTCH_LEVEL - y) / .02, 0, 1)
+            weight = (1. - smoothstep((inside - .80) / .45)) * smoothstep((CROTCH_LEVEL - y) / .045)
             scale = 1 + (profile - 1) * weight
             scaled_x = center[:, 0] + (vertices[:, 0] - center[:, 0]) * scale
             scaled_z = center[:, 1] + (vertices[:, 2] - center[:, 1]) * scale
@@ -330,10 +420,28 @@ def factor_knots(levels, factors):
 
 
 def fit_measurement_targets(mesh, targets, height_cm, inconsistent_message=PHOTO_FIT_MESSAGE):
-    """Fit the avatar to the given targets; report fit residual, not accuracy."""
+    """Fit the avatar to the given targets; report fit residual, not accuracy.
+
+    The map is one continuous field along the body, not a set of independently scaled
+    sections: the scale curve and every longitudinal geometry field are shape-preserving
+    cubics, so their slope does not jump at the measurement levels (np.interp is only C0,
+    and its knots are exactly those levels).
+
+    The fit target is the measured perimeter of the real cross-section, so the residual
+    reported here is a fit residual, not accuracy against a real body.
+
+    A template-derived between-band shape prior was implemented and measured here, and
+    deliberately left out: feeding it through this fixed point amplifies rather than
+    smooths the hip-waist-chest contrast (the prior nudges the between-band scale, the band
+    perimeters respond, and the iteration drives the band factors further apart to
+    compensate). See verification/scripts/fit-quality.py for the measurements.
+    """
     mesh = mesh.copy()
     h = height_cm / 100
     ordered = sorted(targets, key=lambda t: t["level"])
+    levels = np.array([t["level"] for t in ordered])
+    target_half_width = np.array([t["width_cm"] / height_cm / 2 for t in ordered])
+
     for _ in range(3):
         factors, centers_z = [], []
         for target in ordered:
@@ -346,11 +454,14 @@ def fit_measurement_targets(mesh, targets, height_cm, inconsistent_message=PHOTO
         y = mesh.vertices[:, 1] / h
         scale = PchipInterpolator(*factor_knots([t["level"] for t in ordered], factors))(y)
         vertices = mesh.vertices.copy()
+        # Section half-width: the knots hold the fitted value, and outside the measured span
+        # the field is flat and C1 rather than clamped with a slope discontinuity.
+        torso_edge = c1_profile(levels, target_half_width)(y) * h
         # Constant offset on outer arms preserves their thickness instead of scaling them.
-        torso_edge = np.interp(y, [t["level"] for t in ordered], [t["width_cm"] / height_cm / 2 for t in ordered]) * h
-        weight = np.clip((torso_edge * 1.15 - np.abs(vertices[:, 0])) / (.025 * h), 0, 1)
+        # Smoothstep over a wider band: a clip() ramp kinks where it starts and stops.
+        weight = smoothstep((torso_edge * 1.15 - np.abs(vertices[:, 0])) / (.06 * h))
         vertices[:, 0] = scale_lateral(vertices[:, 0], scale, torso_edge)
-        center_z = np.interp(y, [t["level"] for t in ordered], centers_z)
+        center_z = c1_profile(levels, np.asarray(centers_z))(y)
         vertices[:, 2] = center_z + (vertices[:, 2] - center_z) * (1 + (scale - 1) * weight)
         mesh.vertices = vertices
     sections, errors = [], []

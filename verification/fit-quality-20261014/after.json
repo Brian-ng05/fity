@@ -1,0 +1,1124 @@
+{
+  "all-supplied": {
+    "bands": {
+      "chest_cm": {
+        "target": 96.0,
+        "model": 96.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 82.0,
+        "model": 82.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 100.0,
+        "model": 100.0,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 35.0,
+        "model": 34.9,
+        "error": 0.1
+      },
+      "head_cm": {
+        "target": 58.3,
+        "model": 58.3,
+        "error": 0.0
+      },
+      "thigh_cm": {
+        "target": 55.0,
+        "model": 54.6,
+        "error": 0.4
+      },
+      "calf_cm": {
+        "target": 36.0,
+        "model": 36.0,
+        "error": 0.0
+      },
+      "ankle_cm": {
+        "target": 22.3,
+        "model": 22.3,
+        "error": 0.0
+      }
+    },
+    "max_fit_error_cm": 0.39,
+    "fit_status": "matched",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 46.52101713931711,
+        "p95": 31.33389376683364,
+        "at": 0.65,
+        "sign_changes": 3,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.22,
+          "0.617": 0.81,
+          "0.698": 1.08
+        },
+        "kink_band_max": 1.08,
+        "kink_control_median": 0.25,
+        "kink_control_p90": 1.48
+      },
+      "torso_half_depth": {
+        "peak": 122.91346331956886,
+        "p95": 49.00036614613943,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.07,
+          "0.617": 1.21,
+          "0.698": 0.22
+        },
+        "kink_band_max": 1.21,
+        "kink_control_median": 0.38,
+        "kink_control_p90": 1.64
+      },
+      "torso_depth_centre": {
+        "peak": 122.91346331956886,
+        "p95": 58.74473814147734,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.17,
+          "0.617": 0.24,
+          "0.698": 0.13
+        },
+        "kink_band_max": 0.24,
+        "kink_control_median": 0.4,
+        "kink_control_p90": 1.5
+      },
+      "leg_perimeter": {
+        "peak": 17378.73947676519,
+        "p95": 7596.860510746917,
+        "at": 0.08,
+        "sign_changes": 5,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 1.4,
+          "0.405": 1.18
+        },
+        "kink_band_max": 1.4,
+        "kink_control_median": 0.41,
+        "kink_control_p90": 1.25
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 17.576,
+          "chord_cm": 16.62,
+          "dev_cm": 0.956,
+          "dev_pct": 5.75
+        },
+        "0.617->0.698": {
+          "mid_cm": 15.06,
+          "chord_cm": 16.222,
+          "dev_cm": -1.162,
+          "dev_pct": -7.17
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 11.845,
+          "chord_cm": 10.713,
+          "dev_cm": 1.133,
+          "dev_pct": 10.57
+        },
+        "0.617->0.698": {
+          "mid_cm": 10.705,
+          "chord_cm": 11.152,
+          "dev_cm": -0.447,
+          "dev_pct": -4.01
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 5.1,
+      "half_width_max_cm": 32.0,
+      "samples": 92
+    },
+    "seconds": 0.91,
+    "stability_cm": 0.14
+  },
+  "broad-hips": {
+    "bands": {
+      "chest_cm": {
+        "target": 88.0,
+        "model": 88.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 74.0,
+        "model": 74.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 118.0,
+        "model": 118.0,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 34.2,
+        "model": 34.1,
+        "error": 0.1
+      },
+      "head_cm": {
+        "target": 56.3,
+        "model": 56.3,
+        "error": 0.0
+      },
+      "ankle_cm": {
+        "target": 22.6,
+        "model": 22.4,
+        "error": 0.2
+      }
+    },
+    "max_fit_error_cm": 0.21,
+    "fit_status": "matched",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 50.32726899945383,
+        "p95": 35.96958202134536,
+        "at": 0.65,
+        "sign_changes": 1,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.31,
+          "0.617": 0.76,
+          "0.698": 0.63
+        },
+        "kink_band_max": 0.76,
+        "kink_control_median": 0.3,
+        "kink_control_p90": 1.22
+      },
+      "torso_half_depth": {
+        "peak": 113.90779527773341,
+        "p95": 56.54381052344652,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.13,
+          "0.617": 1.18,
+          "0.698": 0.24
+        },
+        "kink_band_max": 1.18,
+        "kink_control_median": 0.37,
+        "kink_control_p90": 1.37
+      },
+      "torso_depth_centre": {
+        "peak": 113.90779527773675,
+        "p95": 51.78086664369099,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.39,
+          "0.617": 0.07,
+          "0.698": 0.14
+        },
+        "kink_band_max": 0.39,
+        "kink_control_median": 0.38,
+        "kink_control_p90": 1.36
+      },
+      "leg_perimeter": {
+        "peak": 16509.70097109507,
+        "p95": 7299.756945105276,
+        "at": 0.08,
+        "sign_changes": 5,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 1.65,
+          "0.405": 0.51
+        },
+        "kink_band_max": 1.65,
+        "kink_control_median": 0.44,
+        "kink_control_p90": 1.13
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 18.539,
+          "chord_cm": 17.51,
+          "dev_cm": 1.03,
+          "dev_pct": 5.88
+        },
+        "0.617->0.698": {
+          "mid_cm": 13.462,
+          "chord_cm": 14.758,
+          "dev_cm": -1.296,
+          "dev_pct": -8.78
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 12.448,
+          "chord_cm": 11.188,
+          "dev_cm": 1.26,
+          "dev_pct": 11.26
+        },
+        "0.617->0.698": {
+          "mid_cm": 9.64,
+          "chord_cm": 10.2,
+          "dev_cm": -0.559,
+          "dev_pct": -5.48
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 5.0,
+      "half_width_max_cm": 30.3,
+      "samples": 92
+    },
+    "seconds": 1.86,
+    "stability_cm": 0.13
+  },
+  "challenging": {
+    "bands": {
+      "chest_cm": {
+        "target": 106.0,
+        "model": 106.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 68.0,
+        "model": 68.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 118.0,
+        "model": 118.0,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 36.0,
+        "model": 35.9,
+        "error": 0.1
+      },
+      "head_cm": {
+        "target": 59.5,
+        "model": 59.5,
+        "error": 0.0
+      },
+      "thigh_cm": {
+        "target": 70.0,
+        "model": 68.3,
+        "error": 1.7
+      },
+      "calf_cm": {
+        "target": 48.0,
+        "model": 46.8,
+        "error": 1.2
+      },
+      "ankle_cm": {
+        "target": 25.7,
+        "model": 25.3,
+        "error": 0.4
+      }
+    },
+    "max_fit_error_cm": 1.74,
+    "fit_status": "approximate",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 104.77181190435725,
+        "p95": 65.94079253308423,
+        "at": 0.69,
+        "sign_changes": 1,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.31,
+          "0.617": 0.58,
+          "0.698": 0.02
+        },
+        "kink_band_max": 0.58,
+        "kink_control_median": 0.22,
+        "kink_control_p90": 1.3
+      },
+      "torso_half_depth": {
+        "peak": 134.3529805611121,
+        "p95": 74.51223022238538,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.13,
+          "0.617": 1.12,
+          "0.698": 0.33
+        },
+        "kink_band_max": 1.12,
+        "kink_control_median": 0.38,
+        "kink_control_p90": 1.33
+      },
+      "torso_depth_centre": {
+        "peak": 134.3529805611132,
+        "p95": 54.51203608813207,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.46,
+          "0.617": 0.19,
+          "0.698": 0.12
+        },
+        "kink_band_max": 0.46,
+        "kink_control_median": 0.38,
+        "kink_control_p90": 1.37
+      },
+      "leg_perimeter": {
+        "peak": 17976.265811959278,
+        "p95": 7763.697350065826,
+        "at": 0.08,
+        "sign_changes": 2,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 0.08,
+          "0.405": 0.84
+        },
+        "kink_band_max": 0.84,
+        "kink_control_median": 0.52,
+        "kink_control_p90": 1.18
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 17.63,
+          "chord_cm": 16.827,
+          "dev_cm": 0.803,
+          "dev_pct": 4.77
+        },
+        "0.617->0.698": {
+          "mid_cm": 14.03,
+          "chord_cm": 15.718,
+          "dev_cm": -1.687,
+          "dev_pct": -10.74
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 11.881,
+          "chord_cm": 10.768,
+          "dev_cm": 1.113,
+          "dev_pct": 10.34
+        },
+        "0.617->0.698": {
+          "mid_cm": 10.048,
+          "chord_cm": 10.803,
+          "dev_cm": -0.755,
+          "dev_pct": -6.99
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 5.3,
+      "half_width_max_cm": 34.1,
+      "samples": 92
+    },
+    "seconds": 1.4,
+    "stability_cm": 0.14
+  },
+  "chest-heavy": {
+    "bands": {
+      "chest_cm": {
+        "target": 104.0,
+        "model": 104.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 76.0,
+        "model": 76.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 96.0,
+        "model": 96.0,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 35.0,
+        "model": 34.9,
+        "error": 0.1
+      },
+      "head_cm": {
+        "target": 58.3,
+        "model": 58.3,
+        "error": 0.0
+      },
+      "ankle_cm": {
+        "target": 23.2,
+        "model": 23.0,
+        "error": 0.2
+      }
+    },
+    "max_fit_error_cm": 0.17,
+    "fit_status": "matched",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 59.35463854557343,
+        "p95": 50.34422673148656,
+        "at": 0.69,
+        "sign_changes": 1,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.17,
+          "0.617": 0.61,
+          "0.698": 0.08
+        },
+        "kink_band_max": 0.61,
+        "kink_control_median": 0.17,
+        "kink_control_p90": 1.46
+      },
+      "torso_half_depth": {
+        "peak": 131.52441806354554,
+        "p95": 55.51763082183565,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.07,
+          "0.617": 1.18,
+          "0.698": 0.29
+        },
+        "kink_band_max": 1.18,
+        "kink_control_median": 0.46,
+        "kink_control_p90": 1.38
+      },
+      "torso_depth_centre": {
+        "peak": 131.52441806354608,
+        "p95": 58.65505672692251,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.19,
+          "0.617": 0.15,
+          "0.698": 0.14
+        },
+        "kink_band_max": 0.19,
+        "kink_control_median": 0.39,
+        "kink_control_p90": 1.47
+      },
+      "leg_perimeter": {
+        "peak": 17287.691965378966,
+        "p95": 7683.790722243647,
+        "at": 0.08,
+        "sign_changes": 5,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 1.65,
+          "0.405": 1.41
+        },
+        "kink_band_max": 1.65,
+        "kink_control_median": 0.47,
+        "kink_control_p90": 1.13
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 16.6,
+          "chord_cm": 15.651,
+          "dev_cm": 0.95,
+          "dev_pct": 6.07
+        },
+        "0.617->0.698": {
+          "mid_cm": 15.039,
+          "chord_cm": 16.368,
+          "dev_cm": -1.329,
+          "dev_pct": -8.12
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 11.17,
+          "chord_cm": 10.1,
+          "dev_cm": 1.07,
+          "dev_pct": 10.6
+        },
+        "0.617->0.698": {
+          "mid_cm": 10.686,
+          "chord_cm": 11.237,
+          "dev_cm": -0.551,
+          "dev_pct": -4.9
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 5.1,
+      "half_width_max_cm": 33.4,
+      "samples": 92
+    },
+    "seconds": 1.18,
+    "stability_cm": 0.15
+  },
+  "large-calves": {
+    "bands": {
+      "chest_cm": {
+        "target": 94.0,
+        "model": 94.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 80.0,
+        "model": 80.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 100.0,
+        "model": 100.0,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 34.7,
+        "model": 34.7,
+        "error": 0.0
+      },
+      "head_cm": {
+        "target": 58.1,
+        "model": 58.1,
+        "error": 0.0
+      },
+      "thigh_cm": {
+        "target": 56.0,
+        "model": 55.5,
+        "error": 0.5
+      },
+      "calf_cm": {
+        "target": 46.0,
+        "model": 44.9,
+        "error": 1.1
+      },
+      "ankle_cm": {
+        "target": 23.9,
+        "model": 23.6,
+        "error": 0.3
+      }
+    },
+    "max_fit_error_cm": 1.09,
+    "fit_status": "matched",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 47.100214065236564,
+        "p95": 32.6924224513802,
+        "at": 0.65,
+        "sign_changes": 1,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.19,
+          "0.617": 0.78,
+          "0.698": 0.92
+        },
+        "kink_band_max": 0.92,
+        "kink_control_median": 0.22,
+        "kink_control_p90": 1.44
+      },
+      "torso_half_depth": {
+        "peak": 120.7030881789961,
+        "p95": 49.62658516590351,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.07,
+          "0.617": 1.21,
+          "0.698": 0.23
+        },
+        "kink_band_max": 1.21,
+        "kink_control_median": 0.38,
+        "kink_control_p90": 1.69
+      },
+      "torso_depth_centre": {
+        "peak": 120.7030881789961,
+        "p95": 57.66738022287516,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.19,
+          "0.617": 0.21,
+          "0.698": 0.14
+        },
+        "kink_band_max": 0.21,
+        "kink_control_median": 0.48,
+        "kink_control_p90": 1.41
+      },
+      "leg_perimeter": {
+        "peak": 18035.458980978518,
+        "p95": 5437.70326920864,
+        "at": 0.08,
+        "sign_changes": 0,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 0.02,
+          "0.405": 1.51
+        },
+        "kink_band_max": 1.51,
+        "kink_control_median": 0.44,
+        "kink_control_p90": 1.54
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 17.415,
+          "chord_cm": 16.429,
+          "dev_cm": 0.986,
+          "dev_pct": 6.0
+        },
+        "0.617->0.698": {
+          "mid_cm": 14.67,
+          "chord_cm": 15.852,
+          "dev_cm": -1.182,
+          "dev_pct": -7.46
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 11.736,
+          "chord_cm": 10.596,
+          "dev_cm": 1.14,
+          "dev_pct": 10.76
+        },
+        "0.617->0.698": {
+          "mid_cm": 10.46,
+          "chord_cm": 10.924,
+          "dev_cm": -0.464,
+          "dev_pct": -4.25
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 5.1,
+      "half_width_max_cm": 31.6,
+      "samples": 92
+    },
+    "seconds": 1.28,
+    "stability_cm": 0.14
+  },
+  "large-thighs": {
+    "bands": {
+      "chest_cm": {
+        "target": 96.0,
+        "model": 96.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 82.0,
+        "model": 82.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 104.0,
+        "model": 104.0,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 35.3,
+        "model": 35.2,
+        "error": 0.1
+      },
+      "head_cm": {
+        "target": 58.5,
+        "model": 58.5,
+        "error": 0.0
+      },
+      "thigh_cm": {
+        "target": 68.0,
+        "model": 66.2,
+        "error": 1.8
+      },
+      "calf_cm": {
+        "target": 36.0,
+        "model": 36.0,
+        "error": 0.0
+      },
+      "ankle_cm": {
+        "target": 23.6,
+        "model": 23.4,
+        "error": 0.2
+      }
+    },
+    "max_fit_error_cm": 1.75,
+    "fit_status": "approximate",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 48.381622176240086,
+        "p95": 33.733442842400756,
+        "at": 0.65,
+        "sign_changes": 1,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.17,
+          "0.617": 0.78,
+          "0.698": 0.97
+        },
+        "kink_band_max": 0.97,
+        "kink_control_median": 0.22,
+        "kink_control_p90": 1.44
+      },
+      "torso_half_depth": {
+        "peak": 123.04945971432612,
+        "p95": 52.5741354773716,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.08,
+          "0.617": 1.21,
+          "0.698": 0.23
+        },
+        "kink_band_max": 1.21,
+        "kink_control_median": 0.39,
+        "kink_control_p90": 1.67
+      },
+      "torso_depth_centre": {
+        "peak": 123.04945971432501,
+        "p95": 58.61075132671051,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.22,
+          "0.617": 0.23,
+          "0.698": 0.14
+        },
+        "kink_band_max": 0.23,
+        "kink_control_median": 0.43,
+        "kink_control_p90": 1.42
+      },
+      "leg_perimeter": {
+        "peak": 18152.13821913005,
+        "p95": 9417.918414430504,
+        "at": 0.43,
+        "sign_changes": 4,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 1.06,
+          "0.405": 1.21
+        },
+        "kink_band_max": 1.21,
+        "kink_control_median": 0.5,
+        "kink_control_p90": 1.43
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 18.044,
+          "chord_cm": 16.993,
+          "dev_cm": 1.051,
+          "dev_pct": 6.19
+        },
+        "0.617->0.698": {
+          "mid_cm": 15.006,
+          "chord_cm": 16.227,
+          "dev_cm": -1.221,
+          "dev_pct": -7.52
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 12.158,
+          "chord_cm": 10.948,
+          "dev_cm": 1.21,
+          "dev_pct": 11.06
+        },
+        "0.617->0.698": {
+          "mid_cm": 10.669,
+          "chord_cm": 11.155,
+          "dev_cm": -0.486,
+          "dev_pct": -4.35
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 5.2,
+      "half_width_max_cm": 32.1,
+      "samples": 92
+    },
+    "seconds": 1.23,
+    "stability_cm": 0.15
+  },
+  "required-only": {
+    "bands": {
+      "chest_cm": {
+        "target": 92.0,
+        "model": 92.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 78.0,
+        "model": 78.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 101.6,
+        "model": 101.6,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 35.1,
+        "model": 35.0,
+        "error": 0.1
+      },
+      "head_cm": {
+        "target": 57.7,
+        "model": 57.7,
+        "error": 0.0
+      },
+      "ankle_cm": {
+        "target": 23.1,
+        "model": 22.9,
+        "error": 0.2
+      }
+    },
+    "max_fit_error_cm": 0.21,
+    "fit_status": "matched",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 48.56729453235564,
+        "p95": 35.301725249805074,
+        "at": 0.65,
+        "sign_changes": 1,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.16,
+          "0.617": 0.74,
+          "0.698": 0.85
+        },
+        "kink_band_max": 0.85,
+        "kink_control_median": 0.24,
+        "kink_control_p90": 1.42
+      },
+      "torso_half_depth": {
+        "peak": 118.65331232959407,
+        "p95": 51.513801751244884,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.09,
+          "0.617": 1.21,
+          "0.698": 0.23
+        },
+        "kink_band_max": 1.21,
+        "kink_control_median": 0.38,
+        "kink_control_p90": 1.49
+      },
+      "torso_depth_centre": {
+        "peak": 118.65331232959686,
+        "p95": 56.39590941784216,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.23,
+          "0.617": 0.2,
+          "0.698": 0.14
+        },
+        "kink_band_max": 0.23,
+        "kink_control_median": 0.42,
+        "kink_control_p90": 1.34
+      },
+      "leg_perimeter": {
+        "peak": 16918.74631785126,
+        "p95": 7486.187281406277,
+        "at": 0.08,
+        "sign_changes": 5,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 1.65,
+          "0.405": 1.1
+        },
+        "kink_band_max": 1.65,
+        "kink_control_median": 0.47,
+        "kink_control_p90": 1.13
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 17.449,
+          "chord_cm": 16.396,
+          "dev_cm": 1.052,
+          "dev_pct": 6.42
+        },
+        "0.617->0.698": {
+          "mid_cm": 14.259,
+          "chord_cm": 15.489,
+          "dev_cm": -1.231,
+          "dev_pct": -7.95
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 11.759,
+          "chord_cm": 10.572,
+          "dev_cm": 1.187,
+          "dev_pct": 11.23
+        },
+        "0.617->0.698": {
+          "mid_cm": 10.177,
+          "chord_cm": 10.681,
+          "dev_cm": -0.504,
+          "dev_pct": -4.72
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 5.2,
+      "half_width_max_cm": 31.3,
+      "samples": 92
+    },
+    "seconds": 1.31,
+    "stability_cm": 0.14
+  },
+  "slim": {
+    "bands": {
+      "chest_cm": {
+        "target": 84.0,
+        "model": 84.0,
+        "error": 0.0
+      },
+      "waist_cm": {
+        "target": 68.0,
+        "model": 68.0,
+        "error": 0.0
+      },
+      "hip_cm": {
+        "target": 88.0,
+        "model": 88.0,
+        "error": 0.0
+      },
+      "neck_cm": {
+        "target": 31.9,
+        "model": 31.9,
+        "error": 0.0
+      },
+      "head_cm": {
+        "target": 55.3,
+        "model": 55.3,
+        "error": 0.0
+      },
+      "thigh_cm": {
+        "target": 48.0,
+        "model": 48.5,
+        "error": 0.5
+      },
+      "calf_cm": {
+        "target": 32.0,
+        "model": 32.5,
+        "error": 0.5
+      },
+      "ankle_cm": {
+        "target": 20.6,
+        "model": 20.7,
+        "error": 0.1
+      }
+    },
+    "max_fit_error_cm": 0.48,
+    "fit_status": "matched",
+    "continuity": {
+      "torso_half_width": {
+        "peak": 47.37159011604208,
+        "p95": 36.77487495905651,
+        "at": 0.65,
+        "sign_changes": 1,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.15,
+          "0.617": 0.68,
+          "0.698": 0.34
+        },
+        "kink_band_max": 0.68,
+        "kink_control_median": 0.21,
+        "kink_control_p90": 1.44
+      },
+      "torso_half_depth": {
+        "peak": 108.50841020185963,
+        "p95": 50.68701740041722,
+        "at": 0.705,
+        "sign_changes": 5,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.07,
+          "0.617": 1.21,
+          "0.698": 0.27
+        },
+        "kink_band_max": 1.21,
+        "kink_control_median": 0.4,
+        "kink_control_p90": 1.31
+      },
+      "torso_depth_centre": {
+        "peak": 108.5084102018624,
+        "p95": 50.62946282339153,
+        "at": 0.705,
+        "sign_changes": 4,
+        "n": 52,
+        "kink_at_bands": {
+          "0.505": 0.17,
+          "0.617": 0.05,
+          "0.698": 0.15
+        },
+        "kink_band_max": 0.17,
+        "kink_control_median": 0.39,
+        "kink_control_p90": 1.43
+      },
+      "leg_perimeter": {
+        "peak": 16707.45964304231,
+        "p95": 9850.629032276509,
+        "at": 0.08,
+        "sign_changes": 5,
+        "n": 74,
+        "kink_at_bands": {
+          "0.235": 0.62,
+          "0.405": 1.73
+        },
+        "kink_band_max": 1.73,
+        "kink_control_median": 0.41,
+        "kink_control_p90": 1.35
+      }
+    },
+    "interband": {
+      "half_width": {
+        "0.505->0.617": {
+          "mid_cm": 15.029,
+          "chord_cm": 14.082,
+          "dev_cm": 0.947,
+          "dev_pct": 6.73
+        },
+        "0.617->0.698": {
+          "mid_cm": 12.602,
+          "chord_cm": 13.771,
+          "dev_cm": -1.169,
+          "dev_pct": -8.49
+        }
+      },
+      "half_depth": {
+        "0.505->0.617": {
+          "mid_cm": 10.05,
+          "chord_cm": 9.057,
+          "dev_cm": 0.993,
+          "dev_pct": 10.96
+        },
+        "0.617->0.698": {
+          "mid_cm": 9.083,
+          "chord_cm": 9.559,
+          "dev_cm": -0.476,
+          "dev_pct": -4.98
+        }
+      }
+    },
+    "silhouette": {
+      "half_width_min_cm": 4.6,
+      "half_width_max_cm": 29.1,
+      "samples": 92
+    },
+    "seconds": 1.42,
+    "stability_cm": 0.14
+  }
+}

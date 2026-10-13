@@ -293,44 +293,52 @@
   scrollbar-color: var(--border-strong) var(--surface);
 }
 
-.scan-rows button {
-  width: 100%;
+/* One measurement per row: the label (a button that highlights its ring) plus either the
+   value or, for a band the fit can reach, an inline − value + stepper. */
+.scan-row {
   display: grid;
-  grid-template-columns: 8px 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border-bottom: 1px solid var(--surface-muted);
+  padding: 8px 12px 8px 16px;
+  transition: background 0.15s;
+}
+
+.scan-row.selected {
+  background: var(--primary-soft);
+}
+
+.scan-row-pick {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   text-align: left;
   border: 0;
-  border-bottom: 1px solid var(--surface-muted);
-  padding: 10px 16px;
+  padding: 2px 0;
   background: transparent;
+  color: inherit;
   font-size: 12.5px;
   cursor: pointer;
-  transition: background 0.15s;
 }
 
-.scan-rows button:hover:not(:disabled) {
-  background: var(--surface-muted);
-}
-
-.scan-rows button.selected {
-  background: var(--primary-soft);
+.scan-row-pick:hover:not(:disabled) {
   color: var(--accent-text);
-  font-weight: 600;
 }
 
-.scan-rows button:disabled {
+.scan-row-pick:disabled {
   opacity: 0.55;
   cursor: default;
 }
 
-.scan-rows button > i {
+.scan-row-pick > i {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
 
-.scan-rows button > span {
+.scan-row-pick > span {
   display: grid;
   gap: 2px;
 }
@@ -348,8 +356,59 @@
   color: var(--text-primary);
 }
 
-.scan-rows button.selected b {
+.scan-row.selected b {
   color: var(--accent-text);
+}
+
+/* Inline adjustment: the number is edited on the row it belongs to. */
+.scan-row-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.scan-row-stepper .scan-height-input {
+  margin-top: 0;
+  width: 78px;
+}
+
+.scan-row-stepper .scan-height-input input {
+  min-height: 30px;
+  padding: 4px 6px;
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.scan-row-stepper .scan-height-input > span {
+  min-height: 30px;
+  padding: 0 7px;
+  font-size: 10.5px;
+}
+
+.scan-row .adjust-step {
+  width: 26px;
+  height: 30px;
+}
+
+.scan-adjust-foot {
+  display: grid;
+  gap: 8px;
+  align-items: start;
+  justify-items: start;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.scan-adjust-foot p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.scan-adjust-foot .scan-panel-warn {
+  margin: 0;
 }
 
 .scan-list-foot {
@@ -675,16 +734,8 @@
   }
 }
 
-/* ── Reference vs model, and the adjust panel ─────────────────────────────── */
-.scan-eval {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-bottom: 20px;
-}
-
-.scan-accuracy,
-.scan-adjust {
+/* ── Reference vs model ───────────────────────────────────────────────────── */
+.scan-accuracy {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-panel);
@@ -795,61 +846,6 @@
   color: var(--text-secondary);
 }
 
-.adjust-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.adjust-row {
-  display: grid;
-  grid-template-columns: 1fr 1.25fr 5.4rem;
-  grid-template-areas: "label slider value" "range range value";
-  align-items: center;
-  gap: 4px 10px;
-  font-size: 12px;
-}
-
-.adjust-row > label {
-  grid-area: label;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.adjust-row > label small {
-  font-weight: 400;
-  color: var(--text-secondary);
-}
-
-.adjust-row > input[type="range"] {
-  grid-area: slider;
-  width: 100%;
-  accent-color: var(--primary);
-}
-
-.adjust-row > .scan-height-input {
-  grid-area: value;
-}
-
-.adjust-row > small {
-  grid-area: range;
-  font-size: 11px;
-  color: var(--text-secondary);
-}
-
-.adjust-row-bad > small,
-.adjust-bad {
-  color: #b33928;
-}
-
-.adjust-row-bad .scan-height-input {
-  border-color: #b33928;
-}
-
 .scan-panel-foot .scan-advice-actions {
   margin-top: 12px;
   display: flex;
@@ -858,28 +854,13 @@
   flex-wrap: wrap;
 }
 
-@media (max-width: 1100px) {
-  .scan-eval {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Live adjust panel: single column, with a current-value stepper per band. */
-.scan-eval {
-  grid-template-columns: 1fr;
-}
-
+/* The inline stepper reuses these; the per-band grid the old panel needed is gone. */
 .adjust-status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-}
-
-.adjust-stepper {
-  grid-area: stepper;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .adjust-step {
@@ -904,15 +885,6 @@
   cursor: not-allowed;
 }
 
-.adjust-row {
-  grid-template-columns: 1fr 1fr auto;
-  grid-template-areas:
-    "label label label"
-    "slider slider stepper"
-    "range range range";
-  row-gap: 2px;
-}
-
 /* The deviation report is a small report under the viewer, not a headline panel. */
 .scan-accuracy {
   margin-bottom: 20px;
@@ -935,5 +907,11 @@
     grid-template-columns: 1.6fr .7fr .7fr .6fr .55fr;
     font-size: 11px;
     gap: 4px;
+  }
+  .scan-row {
+    padding: 8px 8px;
+  }
+  .scan-row-stepper .scan-height-input {
+    width: 64px;
   }
 }

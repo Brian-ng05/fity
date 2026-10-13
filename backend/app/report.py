@@ -18,6 +18,8 @@ def measurement_report(mesh, measurements, profile, height_cm):
     h = height_cm / 100
     upper = profile.get("capture_mode") == "upper_body"
     manual = profile.get("measurement_source") == "manual"
+    # Bands the service computed instead of receiving; they must not read as user input.
+    derived = set(profile.get("derived_bands") or ())
     rows = []
 
     def add(key, label, value, source, points=None, color="#39d5c2"):
@@ -26,8 +28,10 @@ def measurement_report(mesh, measurements, profile, height_cm):
 
     def body_source(key):
         if manual:
-            # Nothing here is observed: a band the user typed is their input, a
-            # band they left blank keeps the model's own number.
+            # Nothing here is observed: a band the user typed is their input, a band the
+            # service computed is "derived", and a band left blank keeps the model's own.
+            if key in derived:
+                return "derived"
             return "user_input" if measurements.get(key) is not None else "template_model"
         if upper and key == "hip_cm":
             return "template_model"
@@ -62,7 +66,7 @@ def measurement_report(mesh, measurements, profile, height_cm):
             add(key, title, None, "unavailable", color=SECTION_COLORS[key])
             continue
         if manual and measurements.get(key) is not None:
-            add(key, title, measurements[key], "user_input", curve, SECTION_COLORS[key])
+            add(key, title, measurements[key], "derived" if key in derived else "user_input", curve, SECTION_COLORS[key])
         else:
             add(key, title, circumference, "template_model", curve, SECTION_COLORS[key])
     add("arm_length_cm", "Dài tay", measurements.get("arm_length_cm"), typed_but_unfitted("arm_length_cm") or "unavailable")

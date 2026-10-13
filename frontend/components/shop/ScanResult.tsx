@@ -8,12 +8,16 @@ import {
   Download,
   Expand,
   Image as ImageIcon,
+  LoaderCircle,
+  Minus,
   PencilRuler,
+  Plus,
   RotateCcw,
   Rotate3D,
   Ruler,
   SlidersHorizontal,
   Sparkles,
+  TriangleAlert,
   AlertCircle,
 } from "lucide-react";
 import type { Job, MeasurementDetail } from "../../lib/useBodyScan";
@@ -23,8 +27,9 @@ import type { ManualInput } from "../../lib/useBodyScan";
 import type { ReferenceSet } from "../../lib/measurementCompare";
 import type { PreviewValues } from "../../lib/bodyPreview";
 import type { PreviewState } from "../BodyViewer";
+import { FITTED_BANDS } from "../../lib/bandLimits";
+import { shownCm, useBandAdjust } from "../../lib/useBandAdjust";
 import MeasurementAccuracy from "./MeasurementAccuracy";
-import MeasurementAdjust from "./MeasurementAdjust";
 
 const Viewer = dynamic(() => import("../BodyViewer"), {
   ssr: false,
@@ -34,6 +39,7 @@ const Viewer = dynamic(() => import("../BodyViewer"), {
 const SOURCE: Record<MeasurementDetail["source"], string> = {
   user_input: "Bạn nhập",
   user_input_unfitted: "Bạn nhập · không dựng vào mô hình",
+  derived: "Hệ thống tự tính",
   photo_estimate: "Ước lượng từ ảnh",
   photo_with_prior: "Ảnh + tỷ lệ mẫu",
   template_model: "Theo mẫu 3D",
@@ -102,6 +108,16 @@ export default function ScanResult({
   const [selected, setSelected] = useState("");
   const [notice, setNotice] = useState("");
 
+  // The adjustment controls live inline in the measurement list below, so what used to be
+  // a panel with its own state is a hook now.
+  const adjust = useBandAdjust({
+    job,
+    reference: reference ?? null,
+    onPreview: onPreview ?? (() => {}),
+    onCommit: onAdjust ?? (() => {}),
+  });
+  const adjustable = Boolean(onPreview && onAdjust) && Boolean(adjust.limits);
+
   const rows = job.body_profile?.measurement_details || [];
   const upper = job.body_profile?.capture_mode === "upper_body";
   // The avatar was fitted to typed numbers, so no photo vocabulary applies here.
@@ -112,6 +128,7 @@ export default function ScanResult({
   // Read the note back from what the service actually reported, so it stays true
   // whichever supporting bands the user filled in.
   const fittedLabels = rows.filter((m) => m.source === "user_input" && m.key !== "height_cm").map((m) => m.label);
+  const derivedLabels = rows.filter((m) => m.source === "derived").map((m) => m.label);
   const recordedLabels = rows.filter((m) => m.source === "user_input_unfitted").map((m) => m.label);
 
   async function fullscreen() {
@@ -193,9 +210,9 @@ export default function ScanResult({
 
       <p className="scan-source-note">
         {manual
-          ? `Dựng trên mẫu cơ thể 3D có sẵn: ${fittedLabels.join(", ")} khớp đúng số bạn nhập; phần bạn để trống giữ theo mẫu 3D.${
-              recordedLabels.length ? ` ${recordedLabels.join(", ")} chỉ được ghi lại, không dựng vào mô hình.` : ""
-            }`
+          ? `Dựng trên mẫu cơ thể 3D có sẵn: ${fittedLabels.join(", ")} khớp đúng số bạn nhập;${
+              derivedLabels.length ? ` ${derivedLabels.join(", ")} do hệ thống tự tính theo các số đó;` : ""
+            } phần bạn để trống giữ theo mẫu 3D.${recordedLabels.length ? ` ${recordedLabels.join(", ")} chỉ được ghi lại, không dựng vào mô hình.` : ""}`
           : upper
           ? "Không chụp chân. Ngực/eo dựa trên ảnh và tỷ lệ vai–hông giả định; phần đầu, mông và chân theo mẫu 3D."
           : "Ngực/eo/mông ước lượng từ hai ảnh. Các vòng đầu, cổ và chân trích từ mẫu 3D."}{" "}
@@ -308,21 +325,6 @@ export default function ScanResult({
         </div>
       </section>
 
-      {/* The live controls sit above the viewer they drive; the deviation report is kept
-          below it as a small report. */}
-      {onAdjust && onPreview && (
-        <section className="scan-eval" aria-label="Chỉnh số đo">
-          <MeasurementAdjust
-            job={job}
-            reference={reference ?? null}
-            onPreview={onPreview}
-            onCommit={onAdjust}
-            rebuilding={Boolean(rebuilding)}
-            error={error}
-          />
-        </section>
-      )}
-
       {/* 3D Workspace */}
       <div className="scan-workspace">
         <aside className="scan-measure-list" aria-label="Danh sách số đo">
@@ -338,34 +340,130 @@ export default function ScanResult({
               ))}
             </div>
           </div>
-          <p>Chọn một dòng để làm nổi đường đo tương ứng trên hình thể.</p>
+          <p>Chọn một dòng để làm nổi đường đo tương ứng. Vòng có sẵn thì kéo hoặc bấm ± để chỉnh số ngay tại đây.</p>
           <div className="scan-rows">
-            {rows.map((m) => (
-              <button
-                key={m.key}
-                type="button"
-                className={selected === m.key ? "selected" : ""}
-                onClick={() => {
-                  setSelected(selected === m.key ? "" : m.key);
-                  setRings(true);
-                }}
-                disabled={!m.points_m.length}
-                aria-pressed={selected === m.key}
-              >
-                <i style={{ background: m.color }} />
-                <span>
-                  {m.label}
-                  <small>{SOURCE[m.source]}</small>
-                </span>
-                <b>
-                  {value(m)}
-                  <small>{m.value_cm != null ? unit : ""}</small>
-                </b>
-              </button>
-            ))}
+            {rows.map((m) => {
+              const canAdjust = adjustable && unit === "cm" && (FITTED_BANDS as readonly string[]).includes(m.key);
+              const range = canAdjust ? adjust.limits?.bands[m.key] : undefined;
+              const shown = adjust.draft[m.key] ?? null;
+              const origin = reference?.values?.[m.key];
+              const moved =
+                canAdjust && typeof origin === "number" && shown != null && Math.abs(shown - origin) > 0.05;
+              const bad = canAdjust && adjust.outside.includes(m.key);
+              return (
+                <div
+                  className={`scan-row${selected === m.key ? " selected" : ""}${canAdjust ? " adjustable" : ""}`}
+                  key={m.key}
+                >
+                  <button
+                    type="button"
+                    className="scan-row-pick"
+                    onClick={() => {
+                      setSelected(selected === m.key ? "" : m.key);
+                      setRings(true);
+                    }}
+                    disabled={!m.points_m.length}
+                    aria-pressed={selected === m.key}
+                  >
+                    <i style={{ background: m.color }} />
+                    <span>
+                      {m.label}
+                      <small>
+                        {SOURCE[m.source]}
+                        {moved && typeof origin === "number" ? ` · gốc ${shownCm(origin)} cm` : ""}
+                      </small>
+                    </span>
+                  </button>
+                  {canAdjust && range ? (
+                    <div className="scan-row-stepper">
+                      <button
+                        type="button"
+                        className="adjust-step"
+                        aria-label={`Giảm ${m.label} 1 cm`}
+                        disabled={shown != null && shown <= range.min_cm}
+                        onClick={() => adjust.step(m.key, -1)}
+                      >
+                        <Minus size={13} />
+                      </button>
+                      <div className="scan-height-input" data-invalid={bad}>
+                        <input
+                          id={`adjust-${m.key}`}
+                          type="number"
+                          inputMode="decimal"
+                          step="1"
+                          min={range.min_cm}
+                          max={range.max_cm}
+                          value={shownCm(shown) ?? ""}
+                          placeholder={String(Math.round(range.base_cm))}
+                          aria-label={`${m.label} (cm)`}
+                          aria-invalid={bad}
+                          onChange={(event) =>
+                            adjust.set(m.key, event.target.value === "" ? null : Number(event.target.value))
+                          }
+                        />
+                        <span>cm</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="adjust-step"
+                        aria-label={`Tăng ${m.label} 1 cm`}
+                        disabled={shown != null && shown >= range.max_cm}
+                        onClick={() => adjust.step(m.key, 1)}
+                      >
+                        <Plus size={13} />
+                      </button>
+                    </div>
+                  ) : (
+                    <b>
+                      {value(m)}
+                      <small>{m.value_cm != null ? unit : ""}</small>
+                    </b>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          {adjustable && (
+            <div className="scan-adjust-foot">
+              <div className="adjust-status" role="status">
+                {rebuilding ? (
+                  <>
+                    <LoaderCircle size={13} className="spin" /> Đang dựng lại mô hình…
+                  </>
+                ) : adjust.changed ? (
+                  "Đang xem trước…"
+                ) : (
+                  "Đã khớp với mô hình"
+                )}
+              </div>
+              <p>
+                Kéo số là mô hình trên trình duyệt đổi ngay; số được gửi đi dựng lại sau khi bạn dừng tay. Dải số là
+                khoảng <strong>mẫu 3D dãn tới</strong>, không phải khuyến nghị về cơ thể bạn.
+              </p>
+              {adjust.missingCore && (
+                <p className="scan-panel-warn">
+                  <TriangleAlert size={14} /> Cần vòng ngực và vòng eo để dựng mô hình.
+                </p>
+              )}
+              {adjust.outside.length > 0 && (
+                <p className="scan-panel-warn">
+                  <TriangleAlert size={14} /> {adjust.outside.length} số nằm ngoài dải mẫu có thể dựng nên chưa gửi đi
+                  dựng lại.
+                </p>
+              )}
+              <button
+                className="scan-btn-subtle"
+                type="button"
+                onClick={adjust.resetToReference}
+                disabled={!reference || rebuilding}
+              >
+                <RotateCcw size={14} /> Về số gốc
+              </button>
+            </div>
+          )}
           <p className="scan-list-foot">
-            “Theo mẫu 3D” không phải số đo cơ thể được quan sát hay do bạn nhập. “Bạn nhập · không dựng vào mô hình” là
+            “Theo mẫu 3D” không phải số đo cơ thể được quan sát hay do bạn nhập. “Hệ thống tự tính” là ba vòng cổ, đầu
+            và cổ chân do FITY suy ra từ các số bạn nhập rồi dựng vào mô hình. “Bạn nhập · không dựng vào mô hình” là
             số bạn gõ vào nhưng mô hình 3D không được nắn theo.
           </p>
         </aside>

@@ -30,6 +30,7 @@ export default function MeasurementAccuracy({
   const rows = buildComparison(job, reference);
   const comparable = rows.filter((row) => row.diffCm != null);
   const flagged = comparable.filter((row) => row.significant);
+  const derivedRows = rows.filter((row) => row.derived);
   const maxDiff = comparable.reduce((peak, row) => Math.max(peak, row.diffCm ?? 0), 0);
   const fitStatus = job.body_profile?.fit_status;
   const fitError = job.body_profile?.max_fit_error_cm;
@@ -42,6 +43,11 @@ export default function MeasurementAccuracy({
         </h3>
         <span>{comparable.length} số đo so được</span>
       </div>
+
+      <p className="scan-panel-note">
+        Bảng này kiểm tra mô hình có dựng đúng số đo đã nhập không: mỗi dòng là số <strong>mô hình 3D đo lại được</strong>{" "}
+        so với số gốc của phiên, kèm mức lệch.
+      </p>
 
       {!reference ? (
         <p className="scan-panel-note">
@@ -69,7 +75,13 @@ export default function MeasurementAccuracy({
                 <span role="cell">
                   {row.label}
                   <small>
-                    {row.origin === "fitted_section" ? "khớp theo số nhập" : row.origin === "mesh_section" ? "đo từ mô hình, theo mẫu" : "—"}
+                    {row.derived
+                      ? "khớp theo số hệ thống tự tính"
+                      : row.origin === "fitted_section"
+                      ? "khớp theo số nhập"
+                      : row.origin === "mesh_section"
+                      ? "đo từ mô hình, theo mẫu"
+                      : "—"}
                   </small>
                 </span>
                 <span role="cell">{fmt(row.referenceCm, unit)}</span>
@@ -96,8 +108,8 @@ export default function MeasurementAccuracy({
             ) : (
               <>
                 <AlertTriangle size={13} /> {flagged.length} số lệch hơn {SIGNIFICANT_CM} cm so với số gốc:{" "}
-                {flagged.map((row) => row.label).join(", ")}. Kéo các số này trong mục “Chỉnh số đo” nếu bạn muốn mô
-                hình sát số gốc hơn.
+                {flagged.map((row) => row.label).join(", ")}. Kéo các số này ngay trong danh sách số đo (bên trái khung
+                mô hình) nếu bạn muốn mô hình sát số gốc hơn.
               </>
             )}
           </p>
@@ -120,6 +132,12 @@ export default function MeasurementAccuracy({
             <p className="scan-panel-foot">
               Số bạn nhập nhưng mô hình 3D không có (rộng vai, dài tay, dài trong chân) được ghi là “không có”, không
               bịa giá trị.
+            </p>
+          )}
+          {derivedRows.length > 0 && (
+            <p className="scan-panel-foot">
+              {derivedRows.map((row) => row.label).join(", ")} do hệ thống tự tính từ các số bạn nhập (không phải số bạn
+              đo), rồi cũng được dựng vào mô hình; lệch nhỏ ở đây chỉ xác nhận mô hình dựng đúng số tự tính.
             </p>
           )}
         </>

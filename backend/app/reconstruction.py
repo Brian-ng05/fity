@@ -18,16 +18,16 @@ import trimesh
 
 from .config import MODELS
 from .images import InvalidPhoto
-from .measurements import (LEG_EXTRA, MANUAL_BANDS, RECORDED_ONLY_BANDS, all_bands, band_ranges, closed_torso_section,
-                           estimate_from_profiles, extra_midline_targets, fit_leg_targets, fit_measurement_targets,
+from .measurements import (DERIVED_BANDS, DERIVED_LABELS, LEG_EXTRA, MANUAL_BANDS, RECORDED_ONLY_BANDS, all_bands, band_ranges, closed_torso_section,
+                           derive_supporting_bands, estimate_from_profiles, extra_midline_targets, fit_leg_targets, fit_measurement_targets,
                            leg_girth_targets, manual_targets, measurement_limits, merge_fit_profiles, scale_lateral)
 
 MODEL_PATH = MODELS / "pose_landmarker_full.task"
 TEMPLATE_PATH = MODELS / "body-template.obj"
-ENGINE = "mediapipe-two-photo-fit-v4"
+ENGINE = "mediapipe-two-photo-fit-v5"
 # The measurement path shares the template and the fitting code but needs neither
 # MediaPipe nor a photo, so it reports its own engine name.
-MEASUREMENT_ENGINE = "measurement-template-fit-v2"
+MEASUREMENT_ENGINE = "measurement-template-fit-v3"
 MANUAL_FIT_MESSAGE = "Số đo bạn nhập vượt quá dải mô phỏng của mẫu 3D. Kiểm tra lại chiều cao và các vòng đã nhập."
 # Labels for the numbers that are recorded but never shaped into the avatar.
 RECORDED_ONLY_LABELS = {"shoulder_width_cm": "rộng vai", "arm_length_cm": "dài tay", "inseam_cm": "dài trong chân"}
@@ -371,27 +371,36 @@ def reconstruct_from_measurements(values: dict, height_cm: float, destination: P
     """Build the avatar from measurements typed by the user: no photo, pose or mask.
 
     The template is scaled to the entered height, fitted to the entered torso, neck and
-    head girths, then each leg is fitted to the entered limb girths. A band the user
-    left blank keeps its template shape instead of an invented number.
+    head girths, then each leg is fitted to the entered limb girths. Neck, head and ankle
+    are no longer typed: the service derives them from the entered numbers (see
+    derive_supporting_bands) so the avatar still carries them. A band the user left blank
+    and the service does not derive keeps its template shape instead of an invented number.
     """
     report("Đang dựng hình thể từ số đo đã nhập…")
     template = read_template()
     mesh = template.copy()
     mesh.vertices *= height_cm / 100
     mesh.visual.vertex_colors = [148, 170, 146, 255]
-    targets = manual_targets(template, values, height_cm) + extra_midline_targets(template, values, height_cm)
+    # What the fit and the report both work from: the user's own numbers, with the bands
+    # nobody was asked for filled in. A supplied value always wins over a derived one.
+    derived = derive_supporting_bands(template, values, height_cm)
+    effective = {**values, **derived}
+    targets = manual_targets(template, effective, height_cm) + extra_midline_targets(template, effective, height_cm)
     report("Đang khớp avatar theo các vòng bạn nhập…")
     mesh, profile = fit_measurement_targets(mesh, targets, height_cm, MANUAL_FIT_MESSAGE)
-    mesh, leg_profile = fit_leg_targets(mesh, leg_girth_targets(values), height_cm, MANUAL_FIT_MESSAGE)
+    mesh, leg_profile = fit_leg_targets(mesh, leg_girth_targets(effective), height_cm, MANUAL_FIT_MESSAGE)
     profile = merge_fit_profiles(profile, leg_profile)
     measurements: dict[str, float | None] = {"height_cm": round(float(height_cm), 1)}
     for key in list(all_bands()) + list(RECORDED_ONLY_BANDS):
-        value = values.get(key)
+        value = effective.get(key)
         measurements[key] = round(float(value), 1) if value is not None else None
     profile["capture_mode"] = "manual"
     profile["measurement_source"] = "manual"
-    profile["measurement_method"] = "manual_ellipse_template_fit_v2"
+    profile["measurement_method"] = "manual_ellipse_template_fit_v3"
     profile["scale_method"] = "entered_circumferences"
+    # Which bands the service computed rather than received, so the report can say so
+    # instead of labelling a derived number as the user's own.
+    profile["derived_bands"] = sorted(derived)
     profile["note"] = "Sai lệch fit chỉ so avatar với số đo bạn nhập, không phải kiểm chứng số đo đó đúng với cơ thể."
     from .report import measurement_report
     profile["measurement_details"] = measurement_report(mesh, measurements, profile, height_cm)
@@ -406,9 +415,12 @@ def reconstruct_from_measurements(values: dict, height_cm: float, destination: P
     missing = [MANUAL_BANDS[key][0].lower() for key in MANUAL_BANDS if values.get(key) is None]
     if missing:
         warnings.insert(1, f"Bạn chưa nhập vòng {', '.join(missing)}: phần này giữ theo mẫu 3D và không dùng được để đối chiếu bảng size tương ứng.")
-    if any(values.get(key) is not None for key in LEG_EXTRA):
-        warnings.insert(2, "Vòng đùi/bắp chân/cổ chân bạn nhập được áp dụng đối xứng cho cả hai chân: một lần đo và một mẫu 3D không phân biệt chân trái với chân phải.")
+    if any(values.get(key) is not None for key in ("thigh_cm", "calf_cm")):
+        warnings.insert(2, "Vòng đùi/bắp chân bạn nhập được áp dụng đối xứng cho cả hai chân: một lần đo và một mẫu 3D không phân biệt chân trái với chân phải.")
+    if derived:
+        computed = ", ".join(DERIVED_LABELS[key] for key in DERIVED_BANDS if key in derived)
+        warnings.insert(3, f"{computed.capitalize()} được hệ thống tự tính theo chiều cao và các số đo bạn nhập, rồi dựng vào mô hình. Đây là tỷ lệ ước lượng, không phải số bạn tự đo.")
     recorded = [label for key, label in RECORDED_ONLY_LABELS.items() if values.get(key) is not None]
     if recorded:
-        warnings.insert(3, f"{', '.join(recorded).capitalize()} bạn nhập chỉ được ghi lại để bạn đối chiếu, không dựng vào mô hình 3D.")
+        warnings.insert(4, f"{', '.join(recorded).capitalize()} bạn nhập chỉ được ghi lại để bạn đối chiếu, không dựng vào mô hình 3D.")
     return warnings, measurements, profile

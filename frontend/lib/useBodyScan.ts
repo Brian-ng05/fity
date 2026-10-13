@@ -3,7 +3,7 @@ import {useState,useEffect,useRef} from "react";
 import { detachManualJob, loadManualSession, saveManualSession } from "./manualSession";
 type Health = { ready: boolean; engine: string; message: string; manual_ready?: boolean; measurement_engine?: string; manual_message?: string };
 type Measurements = { height_cm?: number; chest_cm?: number; waist_cm?: number; hip_cm?: number; neck_cm?: number | null; head_cm?: number | null; thigh_cm?: number | null; calf_cm?: number | null; ankle_cm?: number | null; shoulder_width_cm?: number | null; arm_length_cm?: number | null; inseam_cm?: number | null };
-export type MeasurementDetail = {key:string;label:string;value_cm:number|null;source:"user_input"|"user_input_unfitted"|"photo_estimate"|"photo_with_prior"|"template_model"|"unavailable";color:string;points_m:[number,number,number][]};
+export type MeasurementDetail = {key:string;label:string;value_cm:number|null;source:"user_input"|"user_input_unfitted"|"derived"|"photo_estimate"|"photo_with_prior"|"template_model"|"unavailable";color:string;points_m:[number,number,number][]};
 type BodyProfile = { capture_mode?:string; measurement_source?:"photos"|"manual"; measurement_details?:MeasurementDetail[]; fit_status?: string; max_fit_error_cm?: number; note?: string; sections?: {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]}[] };
 export type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; stage: string; error?: string; model_url?: string; warnings?: string[]; measurements?: Measurements; body_profile?: BodyProfile; elapsed_seconds?: number };
 type Slot = "front" | "side";

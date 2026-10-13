@@ -25,6 +25,8 @@ export type ComparisonRow = {
   percent: number | null;
   /** fitted_section = the avatar was reshaped to this band; mesh_section = template value, measured off the mesh. */
   origin: ModelOrigin | null;
+  /** True when the service computed this band instead of receiving it (neck/head/ankle). */
+  derived: boolean;
   note?: "no_reference" | "not_in_model";
   significant: boolean;
 };
@@ -77,6 +79,7 @@ export function buildComparison(job: Job | null, reference: ReferenceSet | null)
       diffCm,
       percent,
       origin,
+      derived: detail?.source === "derived",
       note: referenceCm == null ? "no_reference" : modelCm == null ? "not_in_model" : undefined,
       significant: diffCm != null && diffCm > SIGNIFICANT_CM,
     });
@@ -91,4 +94,4 @@ export function buildComparison(job: Job | null, reference: ReferenceSet | null)
  * how far an adjustment has moved the model.
  */
 export const COMPARISON_NOTE =
-  "Sai lệch chỉ so mô hình 3D với chính số đo gốc của phiên này. Vòng đã khớp được nắn theo số bạn nhập nên lệch nhỏ nghĩa là khớp đúng mục tiêu, không phải mô hình đúng với cơ thể thật.";
+  "Sai lệch chỉ so mô hình 3D với chính số đo gốc của phiên này, tức kiểm tra mô hình có dựng đúng số đã nhập không. Vòng đã khớp được nắn theo số bạn nhập nên lệch nhỏ nghĩa là khớp đúng mục tiêu, không phải mô hình đúng với cơ thể thật. Vòng hệ thống tự tính cũng được nắn theo số tự tính đó, nên lệch nhỏ ở đây chỉ xác nhận mô hình dựng đúng số tự tính.";

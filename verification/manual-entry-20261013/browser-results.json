@@ -24,30 +24,34 @@
     {
       "name": "the 3D viewer mounted (no loading/fallback state)",
       "ok": true,
-      "detail": "{\"canvas\":true,\"size\":\"787x600\",\"loading\":null,\"fallback\":\"Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.\"}"
+      "detail": "{\"canvas\":true,\"size\":\"834x600\",\"loading\":null,\"fallback\":\"Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.\"}"
     },
     {
       "name": "the form posts measurements to /api/scans/manual",
       "ok": true,
-      "detail": "[{\"url\":\"/api/scans/manual\",\"status\":202},{\"url\":\"/api/scans/d7315c6268684b45a389c8cd4b83de0d\",\"status\":200},{\"url\":\"/api/scans/d7315c6268684b45a389c8cd4b83de0d\",\"status\":200},{\"url\":\"/api/scans/d7315c6268684b45a389c8cd4b83de0d\",\"status\":200}]"
+      "detail": "[{\"url\":\"/api/scans/manual\",\"status\":202},{\"url\":\"/api/scans/a67661fb79a44f5f9c84499b926ef829\",\"status\":200},{\"url\":\"/api/scans/a67661fb79a44f5f9c84499b926ef829\",\"status\":200},{\"url\":\"/api/scans/a67661fb79a44f5f9c84499b926ef829\",\"status\":200}]"
     },
     {
       "name": "the 3D viewer really rendered a body-shaped mesh",
       "ok": true,
-      "detail": "787x600, 31984 mesh px, box 279x443, avg rgb 48,83,67"
+      "detail": "834x600, 32211 mesh px, box 280x443, avg rgb 48,83,67"
     },
     {
       "name": "WebGL created a real context (not the unsupported-browser notice)",
       "ok": true,
-      "detail": "31984 px drawn"
+      "detail": "32211 px drawn"
     },
     {
       "name": "entered values are shown as the user's own input",
       "ok": true,
-      "detail": "[\"Chiều cao=175.0cm(Bạn nhập)\",\"Ngực=96.0cm(Bạn nhập)\",\"Eo=82.0cm(Bạn nhập)\",\"Mông=100.0cm(Bạn nhập)\",\"Rộng vai=—(Chưa đủ dữ liệu)\",\"Vòng đầu=57.2cm(Theo mẫu 3D)\",\"Vòng cổ=33.2cm(Theo mẫu 3D)\",\"Vòng đùi trái=52.5cm(Theo mẫu 3D)\",\"Vòng bắp chân trái=36.2cm(Theo mẫu 3D)\",\"Vòng cổ chân trái=22.1cm(Theo mẫu 3D)\",\"Dài tay=—(Chưa đủ dữ liệu)\",\"Dài trong chân=—(Chưa đủ dữ liệu)\"]"
+      "detail": "[\"Chiều cao=175.0cm(Bạn nhập)\",\"Ngực=96(Bạn nhập)\",\"Eo=82(Bạn nhập)\",\"Mông=100(Bạn nhập)\",\"Vòng cổ=35(Hệ thống tự tính)\",\"Vòng đầu=58.3(Hệ thống tự tính)\",\"Vòng cổ chân trái=23.2(Hệ thống tự tính)\",\"Rộng vai=—(Chưa đủ dữ liệu)\",\"Vòng đùi trái=(Theo mẫu 3D)\",\"Vòng bắp chân trái=(Theo mẫu 3D)\",\"Dài tay=—(Chưa đủ dữ liệu)\",\"Dài trong chân=—(Chưa đủ dữ liệu)\"]"
     },
     {
-      "name": "template-only measurements stay labelled as the model's",
+      "name": "an unfilled band stays labelled as the model's",
+      "ok": true
+    },
+    {
+      "name": "the bands the form no longer asks for read as computed, not as the user's",
       "ok": true
     },
     {
@@ -58,7 +62,12 @@
     {
       "name": "the GLB model endpoint served the avatar",
       "ok": true,
-      "detail": "[{\"url\":\"/api/scans/d7315c6268684b45a389c8cd4b83de0d/model\",\"status\":200}]"
+      "detail": "[{\"url\":\"/api/scans/a67661fb79a44f5f9c84499b926ef829/model\",\"status\":200}]"
+    },
+    {
+      "name": "a fresh build matches the numbers it computed for the derived trio",
+      "ok": true,
+      "detail": "[{\"label\":\"Vòng ngựckhớp theo số nhập\",\"reference\":\"96.0\",\"model\":\"96.0\",\"diff\":\"0.0\"},{\"label\":\"Vòng cổkhớp theo số hệ thống tự tính\",\"reference\":\"35.0\",\"model\":\"34.9\",\"diff\":\"0.1\"},{\"label\":\"Vòng đầukhớp theo số hệ thống tự tính\",\"reference\":\"58.3\",\"model\":\"58.3\",\"diff\":\"0.0\"},{\"label\":\"Vòng cổ chânkhớp theo số hệ thống tự tính\",\"reference\":\"23.2\",\"model\":\"23.0\",\"diff\":\"0.2\"}]"
     },
     {
       "name": "editing is pre-filled with the previous numbers",
@@ -73,12 +82,12 @@
     {
       "name": "the viewer shows the regenerated measurements",
       "ok": true,
-      "detail": "[\"Chiều cao=175.0cm\",\"Ngực=104.0cm\",\"Eo=82.0cm\",\"Mông=100.0cm\",\"Rộng vai=—\",\"Vòng đầu=57.2cm\",\"Vòng cổ=33.2cm\",\"Vòng đùi trái=52.5cm\",\"Vòng bắp chân trái=36.2cm\",\"Vòng cổ chân trái=22.1cm\",\"Dài tay=—\",\"Dài trong chân=—\"]"
+      "detail": "[\"Chiều cao=175.0cm\",\"Ngực=104\",\"Eo=82\",\"Mông=100\",\"Vòng cổ=35.6\",\"Vòng đầu=58.7\",\"Vòng cổ chân trái=23.6\",\"Rộng vai=—\",\"Vòng đùi trái=\",\"Vòng bắp chân trái=\",\"Dài tay=—\",\"Dài trong chân=—\"]"
     },
     {
       "name": "the previous session was deleted before regenerating",
       "ok": true,
-      "detail": "[{\"url\":\"/api/scans/d7315c6268684b45a389c8cd4b83de0d\",\"status\":204}]"
+      "detail": "[{\"url\":\"/api/scans/a67661fb79a44f5f9c84499b926ef829\",\"status\":204}]"
     },
     {
       "name": "the form is split into labelled groups",
@@ -88,7 +97,7 @@
     {
       "name": "every manual field steps one whole centimetre",
       "ok": true,
-      "detail": "1,1,1,1,1,1,1,1,1,1,1,1"
+      "detail": "1,1,1,1,1,1,1,1,1"
     },
     {
       "name": "the storefront carries the FITY brand, not MORPH",
@@ -96,19 +105,19 @@
       "detail": "FITYSTUDIO"
     },
     {
-      "name": "every supporting band is sent to the service",
+      "name": "every entered band is sent, and the derived trio is left for the service to compute",
       "ok": true,
-      "detail": "{\"height_cm\":170,\"chest_cm\":90,\"waist_cm\":74,\"hip_cm\":96,\"neck_cm\":35,\"head_cm\":56,\"thigh_cm\":54,\"calf_cm\":35,\"ankle_cm\":21,\"shoulder_width_cm\":40,\"arm_length_cm\":59,\"inseam_cm\":78}"
+      "detail": "{\"neck_cm\":null,\"head_cm\":null,\"ankle_cm\":null,\"height_cm\":170,\"chest_cm\":90,\"waist_cm\":74,\"hip_cm\":96,\"thigh_cm\":54,\"calf_cm\":35,\"shoulder_width_cm\":40,\"arm_length_cm\":59,\"inseam_cm\":78}"
     },
     {
       "name": "the body is still rendered with all the supporting bands fitted",
       "ok": true,
-      "detail": "31825 mesh px, box 276x443"
+      "detail": "31785 mesh px, box 276x443"
     },
     {
-      "name": "fitted supporting girths are shown as the user's own input",
+      "name": "typed girths read as the user's own input; the derived trio says it was computed",
       "ok": true,
-      "detail": "[\"Chiều cao=170.0cm(Bạn nhập)\",\"Ngực=90.0cm(Bạn nhập)\",\"Eo=74.0cm(Bạn nhập)\",\"Mông=96.0cm(Bạn nhập)\",\"Vòng cổ=35.0cm(Bạn nhập)\",\"Vòng đầu=56.0cm(Bạn nhập)\",\"Vòng đùi trái=54.0cm(Bạn nhập)\",\"Vòng bắp chân trái=35.0cm(Bạn nhập)\",\"Vòng cổ chân trái=21.0cm(Bạn nhập)\",\"Rộng vai=40.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài tay=59.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài trong chân=78.0cm(Bạn nhập · không dựng vào mô hình)\"]"
+      "detail": "[\"Chiều cao=170.0cm(Bạn nhập)\",\"Ngực=90(Bạn nhập · gốc 96 cm)\",\"Eo=74(Bạn nhập · gốc 82 cm)\",\"Mông=96(Bạn nhập · gốc 100 cm)\",\"Vòng cổ=33.3(Hệ thống tự tính · gốc 35 cm)\",\"Vòng đầu=56.1(Hệ thống tự tính · gốc 58.3 cm)\",\"Vòng đùi trái=54(Bạn nhập)\",\"Vòng bắp chân trái=35(Bạn nhập)\",\"Vòng cổ chân trái=21.7(Hệ thống tự tính · gốc 23.2 cm)\",\"Rộng vai=40.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài tay=59.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài trong chân=78.0cm(Bạn nhập · không dựng vào mô hình)\"]"
     },
     {
       "name": "numbers that were only recorded say so",
@@ -116,7 +125,7 @@
       "detail": "Bạn nhập · không dựng vào mô hình / Bạn nhập · không dựng vào mô hình"
     },
     {
-      "name": "the added girths have a real section to draw on the avatar",
+      "name": "the typed and computed girths have a real section to draw on the avatar",
       "ok": true,
       "detail": "[{\"label\":\"Chiều cao\",\"disabled\":false},{\"label\":\"Ngực\",\"disabled\":false},{\"label\":\"Eo\",\"disabled\":false},{\"label\":\"Mông\",\"disabled\":false},{\"label\":\"Vòng cổ\",\"disabled\":false},{\"label\":\"Vòng đầu\",\"disabled\":false},{\"label\":\"Vòng đùi trái\",\"disabled\":false},{\"label\":\"Vòng bắp chân trái\",\"disabled\":false},{\"label\":\"Vòng cổ chân trái\",\"disabled\":false},{\"label\":\"Rộng vai\",\"disabled\":true},{\"label\":\"Dài tay\",\"disabled\":true},{\"label\":\"Dài trong chân\",\"disabled\":true}]"
     },
@@ -128,22 +137,22 @@
     {
       "name": "the note describes what was fitted and what was only recorded",
       "ok": true,
-      "detail": "Dựng trên mẫu cơ thể 3D có sẵn: Ngực, Eo, Mông, Vòng cổ, Vòng đầu, Vòng đùi trái, Vòng bắp chân trái, Vòng cổ chân trái khớp đúng số bạn nhập; phần bạn để trống giữ theo mẫu 3D. Rộng vai, Dài tay, Dài"
+      "detail": "Dựng trên mẫu cơ thể 3D có sẵn: Ngực, Eo, Mông, Vòng đùi trái, Vòng bắp chân trái khớp đúng số bạn nhập; Vòng cổ, Vòng đầu, Vòng cổ chân trái do hệ thống tự tính theo các số đó; phần bạn để trống giữ "
     },
     {
       "name": "a reload restores the saved measurements and the rebuilt model",
       "ok": true,
-      "detail": "[\"Chiều cao=170.0cm\",\"Ngực=90.0cm\",\"Eo=74.0cm\",\"Mông=96.0cm\",\"Vòng cổ=35.0cm\",\"Vòng đầu=56.0cm\",\"Vòng đùi trái=54.0cm\",\"Vòng bắp chân trái=35.0cm\",\"Vòng cổ chân trái=21.0cm\",\"Rộng vai=40.0cm\",\"Dài tay=59.0cm\",\"Dài trong chân=78.0cm\"]"
+      "detail": "[\"Chiều cao=170.0cm(Bạn nhập)\",\"Ngực=90(Bạn nhập · gốc 96 cm)\",\"Eo=74(Bạn nhập · gốc 82 cm)\",\"Mông=96(Bạn nhập · gốc 100 cm)\",\"Vòng cổ=33.3(Hệ thống tự tính · gốc 35 cm)\",\"Vòng đầu=56.1(Hệ thống tự tính · gốc 58.3 cm)\",\"Vòng đùi trái=54(Bạn nhập)\",\"Vòng bắp chân trái=35(Bạn nhập)\",\"Vòng cổ chân trái=21.7(Hệ thống tự tính · gốc 23.2 cm)\",\"Rộng vai=40.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài tay=59.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài trong chân=78.0cm(Bạn nhập · không dựng vào mô hình)\"]"
     },
     {
       "name": "the restored session really renders the avatar again",
       "ok": true,
-      "detail": "31825 mesh px"
+      "detail": "31785 mesh px"
     },
     {
       "name": "the form re-opens on the saved numbers after a reload",
       "ok": true,
-      "detail": "170/90/35/54/78"
+      "detail": "170/90/54/35/78"
     },
     {
       "name": "the comparison keeps the original baseline and reports the model separately",
@@ -151,9 +160,9 @@
       "detail": "{\"label\":\"Vòng ngựckhớp theo số nhập\",\"reference\":\"96.0\",\"model\":\"90.0\",\"diff\":\"6.0\",\"percent\":\"6.3%\",\"flagged\":true,\"partial\":false}"
     },
     {
-      "name": "a band only the model has shows no reference and no invented percentage",
+      "name": "a computed band is compared against the number the service computed, not treated as model-only",
       "ok": true,
-      "detail": "{\"label\":\"Vòng cổkhớp theo số nhập\",\"reference\":\"—\",\"model\":\"35.0\",\"diff\":\"—\",\"percent\":\"—\",\"flagged\":false,\"partial\":true}"
+      "detail": "[{\"label\":\"Vòng cổkhớp theo số hệ thống tự tính\",\"reference\":\"35.0\",\"model\":\"33.3\",\"diff\":\"1.7\",\"percent\":\"4.9%\",\"flagged\":true,\"partial\":false},{\"label\":\"Vòng đầukhớp theo số hệ thống tự tính\",\"reference\":\"58.3\",\"model\":\"56.1\",\"diff\":\"2.2\",\"percent\":\"3.8%\",\"flagged\":true,\"partial\":false},{\"label\":\"Vòng cổ chânkhớp theo số hệ thống tự tính\",\"reference\":\"23.2\",\"model\":\"21.7\",\"diff\":\"1.5\",\"percent\":\"6.5%\",\"flagged\":false,\"partial\":false}]"
     },
     {
       "name": "the session fit residual is reported separately from the change vs the baseline",
@@ -161,9 +170,9 @@
       "detail": "fit-error line present"
     },
     {
-      "name": "sliders use the template range the service reports, not the wide form bounds",
+      "name": "the inline adjust input is bounded by the template range the service reports, not the wide form bounds",
       "ok": true,
-      "detail": "{\"min\":\"51.7\",\"max\":\"103.4\",\"value\":\"89.7\"}"
+      "detail": "{\"min\":\"51.7\",\"max\":\"103.4\",\"value\":\"90\"}"
     },
     {
       "name": "the stepper moves one centimetre and shows the current value",
@@ -173,7 +182,7 @@
     {
       "name": "the avatar moves in the browser before any rebuild is sent",
       "ok": true,
-      "detail": "no new POST (still 4, was 4); downscaled mesh px 3235 -> 3013 (sweep 56:0 66:0 76:3062 86:3101 96:3151 103:3209)"
+      "detail": "no new POST (still 3, was 3); waist 56 vs 103 -> 2993 / 3217 mesh px"
     },
     {
       "name": "the adjustment is sent to the service and rebuilt",
@@ -198,7 +207,7 @@
     {
       "name": "the viewer shows the regenerated avatar",
       "ok": true,
-      "detail": "33913 mesh px"
+      "detail": "34215 mesh px"
     },
     {
       "name": "the deviation report sits below the 3D viewer as a small report",
@@ -234,12 +243,12 @@
     {
       "name": "the product page modal builds and displays a manual model",
       "ok": true,
-      "detail": "31772 mesh px, box 278x443, avg rgb 48,83,67"
+      "detail": "32076 mesh px, box 278x443, avg rgb 48,83,67"
     },
     {
       "name": "the modal lists the entered measurements with their source",
       "ok": true,
-      "detail": "[\"Chiều cao=162.0cm(Bạn nhập)\",\"Ngực=88.0cm(Bạn nhập)\",\"Eo=70.0cm(Bạn nhập)\",\"Mông=95.7cm(Theo mẫu 3D)\"]"
+      "detail": "[\"Chiều cao=162.0cm(Bạn nhập)\",\"Ngực=88(Bạn nhập)\",\"Eo=70(Bạn nhập)\",\"Mông=(Theo mẫu 3D)\"]"
     },
     {
       "name": "a real photo scan completes, for the camera adjust test",
@@ -247,7 +256,7 @@
       "detail": "completed "
     },
     {
-      "name": "a camera session offers both the comparison and the adjust panel",
+      "name": "a camera session offers both the inline adjust controls and the comparison",
       "ok": true,
       "detail": "Không chụp chân. Ngực/eo dựa trên ảnh và tỷ lệ vai–hông giả định; phần đầu, mông và chân t"
     },
@@ -289,95 +298,43 @@
       "status": 202
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d/model",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829/size-advice",
       "status": 200
     },
     {
@@ -385,7 +342,11 @@
       "status": 200
     },
     {
-      "url": "/api/scans/d7315c6268684b45a389c8cd4b83de0d",
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829/model",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/a67661fb79a44f5f9c84499b926ef829",
       "status": 204
     },
     {
@@ -393,99 +354,59 @@
       "status": 202
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042/model",
       "status": 200
     },
     {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57/model",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/32edb412693c48c4ba745fd11bb8ae57",
+      "url": "/api/scans/9a746275fd4d450291135f80b5ba2042",
       "status": 204
     },
     {
@@ -493,63 +414,55 @@
       "status": 202
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688/model",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2/model",
       "status": 200
     },
     {
@@ -561,7 +474,7 @@
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 200
     },
     {
@@ -569,15 +482,15 @@
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688/size-advice",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688/size-advice",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688/model",
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2/model",
       "status": 200
     },
     {
@@ -585,131 +498,75 @@
       "status": 202
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/e5d105d090b749ecab57364135cbaf35",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/e5d105d090b749ecab57364135cbaf35",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/e5d105d090b749ecab57364135cbaf35",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/e5d105d090b749ecab57364135cbaf35",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/manual",
+      "status": 202
+    },
+    {
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
       "status": 200
     },
     {
-      "url": "/api/scans/d0b8afd5bfad456083640d1e9f3a9688",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/996878fb53ae4808b659e2f48ab4c0c2",
       "status": 204
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded/size-advice",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded/model",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/manual",
-      "status": 202
-    },
-    {
-      "url": "/api/scans/0b396c9da18c472aace2676af0b062eb",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/0b396c9da18c472aace2676af0b062eb",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/0b396c9da18c472aace2676af0b062eb",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/0b396c9da18c472aace2676af0b062eb",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/manual",
-      "status": 202
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/ddf4a84e491c45aba97eac9e2faf4ded",
-      "status": 204
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1/model",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052/model",
       "status": 200
     },
     {
@@ -717,7 +574,7 @@
       "status": 200
     },
     {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
       "status": 200
     },
     {
@@ -725,27 +582,27 @@
       "status": 200
     },
     {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1/size-advice",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1/size-advice",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1/size-advice",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1/model",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052/model",
       "status": 200
     },
     {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
       "status": 204
     },
     {
-      "url": "/api/scans/5d50c530f5034322aeab8e1611c625e1",
+      "url": "/api/scans/da067ab943b840b59ac439f8a9668052",
       "status": 204
     },
     {
@@ -753,79 +610,63 @@
       "status": 202
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6/size-advice",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6/size-advice",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8/size-advice",
       "status": 200
     },
     {
@@ -833,7 +674,7 @@
       "status": 200
     },
     {
-      "url": "/api/scans/7925ee1a29d24a879ff06df2f3b478b6/model",
+      "url": "/api/scans/a1bf2cc39fa946d3855b28e881a7bad8/model",
       "status": 200
     },
     {
@@ -841,11 +682,7 @@
       "status": 200
     },
     {
-      "url": "/api/scans/0cc6646360e645a1abf8e166a0847e49",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/0cc6646360e645a1abf8e166a0847e49/size-advice",
+      "url": "/api/scans/1e875817931448ebabc80a42116addd4",
       "status": 200
     },
     {
@@ -853,11 +690,15 @@
       "status": 200
     },
     {
-      "url": "/api/scans/0cc6646360e645a1abf8e166a0847e49/size-advice",
+      "url": "/api/scans/1e875817931448ebabc80a42116addd4/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/0cc6646360e645a1abf8e166a0847e49/model",
+      "url": "/api/scans/1e875817931448ebabc80a42116addd4/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/1e875817931448ebabc80a42116addd4/model",
       "status": 200
     },
     {
@@ -865,47 +706,43 @@
       "status": 202
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee",
       "status": 200
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee",
       "status": 200
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee",
       "status": 200
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee",
       "status": 200
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee",
       "status": 200
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee",
       "status": 200
     },
     {
-      "url": "/api/scans/0cc6646360e645a1abf8e166a0847e49",
+      "url": "/api/scans/1e875817931448ebabc80a42116addd4",
       "status": 204
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81/size-advice",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee/size-advice",
       "status": 200
     },
     {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81/model",
-      "status": 200
-    },
-    {
-      "url": "/api/scans/68bf57281871491d9d97af88e4965f81/size-advice",
+      "url": "/api/scans/249fe6f97d194265acfe7530358c8eee/model",
       "status": 200
     }
   ]

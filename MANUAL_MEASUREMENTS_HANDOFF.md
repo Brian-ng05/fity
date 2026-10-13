@@ -218,3 +218,73 @@ Preview là **xấp xỉ phía trình duyệt**, không phải engine. Nếu ch�
 ### 8.5 Lưu ý khi chạy harness
 
 Kéo thanh trượt phát sự kiện nhanh hơn nhịp debounce 700 ms, nên harness **không được lấy mẫu chậm hơn 700 ms một lần**, nếu không sẽ có commit lọt vào giữa phép đo và số đọc thành vô nghĩa. Vì vậy có thêm `canvasInkFast()` (thu nhỏ canvas rồi đếm) và mọi phép so sánh dùng nó trong lúc kéo. Ngoài ra `page.waitForFunction(fn, arg, options)` — options là **đối số thứ ba**.
+
+---
+
+## 9. Bỏ ba ô nhập tay (tự tính), và gộp điều chỉnh vào danh sách số đo (14/10/2026)
+
+### 9.1 Có gì mới
+
+- Form nhập số đo còn **9 ô** (trước 12): bỏ hẳn **Vòng cổ**, **Vòng đầu**, **Vòng cổ chân**. Ba vòng này do **dịch vụ tự tính** từ chiều cao và các số bạn nhập, rồi **được dựng vào mô hình**; trong danh sách kết quả chúng mang nguồn mới `Hệ thống tự tính`. Form có một dòng ghi chú nói rõ điều này.
+- **Điều chỉnh nằm ngay trên danh sách số đo**, không còn mục “Chỉnh số đo” riêng phía trên viewer. Mỗi dòng vòng khớp được có nút **− / +** và ô số ngay trên dòng đó; kéo là mô hình trên trình duyệt đổi ngay, dừng tay thì dịch vụ dựng lại (như mục 8). Nút **Về số gốc**, dòng trạng thái (`Đang xem trước…` / `Đang dựng lại mô hình…` / `Đã khớp với mô hình`) và cảnh báo dải nằm ở chân danh sách. Danh sách vẫn bấm được để làm nổi đường đo.
+- **Đối chiếu** vẫn ở dưới viewer, giờ nói rõ mục đích (kiểm tra mô hình có dựng đúng số đã nhập không) và hiện cả ba vòng tự tính với nhãn “khớp theo số hệ thống tự tính”.
+
+### 9.2 Số tự tính lấy từ đâu
+
+`derive_supporting_bands()` trong `backend/app/measurements.py`:
+
+- lấy **vòng của chính mẫu 3D** ở mức giải phẫu đó, đã nhân theo chiều cao (vốn đã là một tỷ lệ hợp lý), rồi
+- **nhích theo tỷ lệ cơ thể** tính từ các số đã nhập so với mẫu: cổ và đầu theo ngực–eo–mông, cổ chân theo đùi–bắp chân (thiếu thì lấy tỷ lệ thân);
+- hệ số mũ đều **< 1** (cổ .55, đầu .20, cổ chân .50) nên giá trị luôn nằm trong dải ±30–40% mẫu dãn được — không bao giờ bị dịch vụ từ chối.
+
+Ở 175 cm (giá trị mẫu đối chiếu: cổ 33.2, đầu 57.2, cổ chân 22.1):
+
+| Nhập | → Cổ | Đầu | Cổ chân |
+|---|---|---|---|
+| 96/82/100 | 35.0 | 58.3 | 23.2 |
+| 84/68/88 (gầy) | 32.3 | 56.6 | 21.5 |
+| 104/96/116 (đậm) | 37.5 | 59.8 | 24.7 |
+| không nhập gì | 33.2 | 57.2 | 22.1 |
+
+Đầu gần như chỉ phụ thuộc chiều cao nên gần như không đổi. Chỉ điền khi ô đó **trống**: một giá trị được gửi tới (ví dụ bạn kéo ở danh sách) luôn thắng. `profile["derived_bands"]` ghi lại đúng những vòng đã tự tính, để `report.py` gán nguồn `derived` chứ không gọi đó là số bạn nhập.
+
+### 9.3 Kiến trúc
+
+| Thành phần | Thay đổi |
+|---|---|
+| `backend/app/measurements.py` | `DERIVED_BANDS`, `DERIVED_LABELS`, `DERIVED_FOLLOW`, `DERIVED_SOURCE_BANDS`, `derive_supporting_bands()`, `RECORDED_ONLY_BANDS`, `band_ranges()`, `measurement_limits()` |
+| `backend/app/reconstruction.py` | `reconstruct_from_measurements()` dựng `effective = {**values, **derived}`, khớp midline + chân theo `effective`, ghi `profile["derived_bands"]`, thêm cảnh báo; cảnh báo chân chỉ còn nói về đùi/bắp chân |
+| `backend/app/report.py` | nguồn `derived` trong `body_source()` và ở nhánh section phụ |
+| `backend/app/main.py` | **không đổi**: `/api/scans/manual` vẫn nhận đủ 12 trường, 3 trường `null` nghĩa là tự tính |
+| `frontend/components/shop/ManualMeasurements.tsx` | `MANUAL_FIELDS` còn 9 ô; `validateManual()` gửi `neck/head/ankle` là `null`; `AUTO_DERIVED_BANDS`; dòng ghi chú tự tính |
+| `frontend/lib/useBandAdjust.ts` | **(mới)** state machine của điều chỉnh (seed, dải hợp lệ, preview gộp theo khung hình, debounce 700 ms, reset) + `shownCm()` + `toInput()` (gửi lại vòng tự tính là `null` trừ khi bạn đã kéo) |
+| `frontend/components/shop/ScanResult.tsx` | render điều chỉnh inline trên từng dòng `.scan-row`, bỏ `.scan-eval`; nguồn `derived`; ghi chú nguồn gồm cả vòng tự tính |
+| `frontend/components/shop/MeasurementAdjust.tsx` | **đã xoá** |
+| `frontend/components/shop/MeasurementAccuracy.tsx`, `frontend/lib/measurementCompare.ts` | cột nhãn cho vòng tự tính, ghi chú mục đích, `ComparisonRow.derived` |
+| `frontend/lib/useBodyScan.ts` | `MeasurementDetail["source"]` thêm `"derived"` |
+| `frontend/app/scan-result.css`, `frontend/app/capture-flow.css` | `.scan-row*`, `.scan-adjust-foot`, `.manual-derived-note`; bỏ CSS của panel cũ |
+
+Bất biến giữ nguyên: mỗi dòng tự khai nguồn; số “mô hình 3D” vẫn **đo lại từ lưới đã dựng**, không lặp lại số người dùng; số gốc (reference) vẫn không đổi khi chỉnh mô hình.
+
+### 9.4 Kiểm tra đã chạy
+
+- **Backend**: `./backend/.venv/Scripts/python.exe -m pytest backend/tests -q` → **77 passed** (trước 74). Test mới chạy engine thật: đo lại trên chính file GLB đúng ba vòng tự tính (≤1.5 cm); giá trị tự tính tăng theo người gầy→đậm nhưng vẫn nằm trong dải mẫu; số gửi tới thắng số tự tính.
+- **Frontend**: `npx tsc --noEmit` sạch; `next build --webpack` pass (29 trang, không đổi tập route).
+- **Browser thật** (Chrome headless + production build QA, `verification/scripts/manual-entry-ui.cjs`) → **57/57 check pass**. Đáng chú ý:
+  - payload gửi lên mang `neck_cm/head_cm/ankle_cm = null` và 9 số đã nhập; mô hình vẫn dựng ra hình người (31 706 px);
+  - ba vòng tự tính hiện `Hệ thống tự tính`; một vòng để trống (đùi/bắp chân) vẫn `Theo mẫu 3D`; các dòng chỉ-ghi-lại vẫn `disabled`;
+  - **phiên mới dựng xong thì lệch của ba vòng tự tính là 0.0 / 0.0 / 0.1 cm** — đúng bằng chứng ở tầng UI rằng số tự tính thực sự được render vào mô hình;
+  - form 9 ô, mỗi ô `step=1`, không tràn ngang ở 390 px; điều chỉnh inline: bấm + đổi 90 → 91, kéo eo 56→103 đổi lưới trên trình duyệt mà **không gửi POST nào**, sau đó commit dựng lại (ngực 102.0) và **số gốc vẫn 96.0**;
+  - phiên camera thật cũng hiện điều chỉnh inline và bảng đối chiếu; sửa ngực → 95, số gốc 82.6 giữ nguyên.
+- Ảnh: `verification/manual-entry-20261013/` (đã cập nhật `manual-form-*`, `manual-result-*`, `manual-live-preview.png`, `manual-adjust-accuracy.png`, `camera-adjust-accuracy.png`, `browser-results.json`).
+- Chạy lại: `node verification/scripts/manual-entry-ui.cjs` (`MORPH_QA_SKIP_BUILD=1` để dùng lại bundle).
+- **Lưu ý harness**: sau khi chạy QA vẫn phải `git checkout -- frontend/next-env.d.ts frontend/tsconfig.tsbuildinfo`.
+
+### 9.5 Giới hạn đã biết
+
+- Ba số tự tính là **tỷ lệ ước lượng theo mẫu**, **không phải số đo của bạn**. Nhãn `Hệ thống tự tính`, dòng ghi chú trong form và cảnh báo trong kết quả đều nói rõ.
+- Vì luôn có thêm ba vòng được khớp, một phiên nhập tay **dựng lâu hơn trước một chút**; harness phải chờ trạng thái `Đã khớp` (hoặc số trên bảng đối chiếu) thay vì một mốc thời gian cố định.
+- Hai điều chỉnh của chính harness (không phải lỗi sản phẩm, đã ghi lại để không nhầm là hồi quy):
+  1. Phép đo “mô hình đổi trên trình duyệt” phải chạy **trong một `page.evaluate`** (đặt giá trị rồi đọc lưới qua vài khung hình). Đọc từ Node có thể chậm hơn nhịp debounce 700 ms và để lọt một commit vào giữa phép đo; thử lại nhiều lần thì sinh thêm POST và chạm **429** của backend.
+  2. Khối modal trên trang sản phẩm phải **chờ phần khôi phục từ localStorage đáp xuống** rồi mới quyết định bấm `Nhập lại`; quyết định ngay ở lần vẽ đầu khiến phép khôi phục về muộn thay thế form vừa mở.
+- Vẫn chưa hỗ trợ chân lệch, chưa có bắp tay, chưa có SMPL-X/SAM/PyTorch, chưa đối chứng bằng thước dây.

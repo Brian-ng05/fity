@@ -1,29 +1,36 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { ArrowRight, LoaderCircle, PencilRuler, Ruler, ShieldCheck } from "lucide-react";
+import { ArrowRight, LoaderCircle, PencilRuler, Ruler, ShieldCheck, Sparkles } from "lucide-react";
 import type { ManualInput } from "../../lib/useBodyScan";
 
-/** Every band the service accepts, in centimetre ranges matching its own bounds.
+/** Every band the service accepts that the form still asks for, in centimetre ranges
+ *  matching its own bounds.
  *
- *  `fitted` records whether the avatar is really reshaped to the number. A band that
- *  is only recorded is still accepted and shown back to the user, and the result list
- *  says so, rather than pretending the 3D model measures it.
+ *  Neck, head and ankle girths are no longer asked for: the service computes them from
+ *  the numbers here (AUTO_DERIVED_BANDS). A band that is only recorded is still accepted
+ *  and shown back to the user, and the result list says so, rather than pretending the
+ *  3D model measures it.
  */
 export const MANUAL_FIELDS = [
   { key: "height_cm", label: "Chiều cao", hint: "Đo khi đứng thẳng, không mang giày.", min: 100, max: 230, required: true, placeholder: "170", group: "core" },
   { key: "chest_cm", label: "Vòng ngực", hint: "Vòng quanh ngực ở chỗ đầy nhất, thước nằm ngang.", min: 40, max: 220, required: true, placeholder: "92", group: "core" },
   { key: "waist_cm", label: "Vòng eo", hint: "Vòng nhỏ nhất quanh bụng, trên rốn một chút.", min: 35, max: 220, required: true, placeholder: "76", group: "core" },
   { key: "hip_cm", label: "Vòng mông", hint: "Vòng quanh chỗ rộng nhất của hông. Để trống nếu chưa đo.", min: 45, max: 250, required: false, placeholder: "96", group: "core" },
-  { key: "neck_cm", label: "Vòng cổ", hint: "Vòng quanh giữa cổ, thước hơi chúc xuống phía trước.", min: 20, max: 70, required: false, placeholder: "35", group: "girth" },
-  { key: "head_cm", label: "Vòng đầu", hint: "Vòng quanh đầu ngang trán và chỗ lồi nhất phía sau.", min: 35, max: 90, required: false, placeholder: "56", group: "girth" },
   { key: "thigh_cm", label: "Vòng đùi", hint: "Đo một bên, ngay dưới mông. Mô hình áp dụng cho cả hai chân.", min: 25, max: 110, required: false, placeholder: "55", group: "girth" },
   { key: "calf_cm", label: "Vòng bắp chân", hint: "Đo một bên, ở chỗ bắp chân to nhất.", min: 15, max: 80, required: false, placeholder: "36", group: "girth" },
-  { key: "ankle_cm", label: "Vòng cổ chân", hint: "Đo một bên, ngay trên mắt cá.", min: 10, max: 50, required: false, placeholder: "22", group: "girth" },
   { key: "shoulder_width_cm", label: "Rộng vai", hint: "Khoảng cách hai mũi vai, đo phía sau lưng.", min: 25, max: 80, required: false, placeholder: "42", group: "recorded" },
   { key: "arm_length_cm", label: "Dài tay", hint: "Từ mũi vai tới hết cổ tay.", min: 40, max: 100, required: false, placeholder: "60", group: "recorded" },
   { key: "inseam_cm", label: "Dài trong chân", hint: "Từ đáy quần tới mắt cá trong.", min: 40, max: 130, required: false, placeholder: "80", group: "recorded" },
 ] as const;
+
+/** Bands the form no longer asks for: the service computes them from the entered numbers.
+ *
+ *  They still travel in the submit payload (as null), because a build with them blank is
+ *  what tells the service to derive them; the inline adjust can also send a real number,
+ *  which then wins over the derivation.
+ */
+export const AUTO_DERIVED_BANDS = ["neck_cm", "head_cm", "ankle_cm"] as const;
 
 const GROUPS = [
   { id: "core", title: "Số đo chính", note: "Chiều cao, vòng ngực và vòng eo là bắt buộc." },
@@ -38,7 +45,7 @@ type DraftSource = Partial<Record<FieldKey, number | null>>;
 
 export const EMPTY_DRAFT: ManualDraft = {
   height_cm: "", chest_cm: "", waist_cm: "", hip_cm: "",
-  neck_cm: "", head_cm: "", thigh_cm: "", calf_cm: "", ankle_cm: "",
+  thigh_cm: "", calf_cm: "",
   shoulder_width_cm: "", arm_length_cm: "", inseam_cm: "",
 };
 
@@ -50,7 +57,9 @@ export function draftFromJob(measurements?: DraftSource): ManualDraft {
 /** Field-level rules, mirroring the backend's own bounds and required fields. */
 export function validateManual(draft: ManualDraft): { values?: ManualInput; errors: ManualFieldErrors } {
   const errors: ManualFieldErrors = {};
-  const values = {} as Record<FieldKey, number | null>;
+  // The bands the form no longer collects are sent as null, which is what asks the
+  // service to derive them from the numbers that are here.
+  const values: Record<string, number | null> = { neck_cm: null, head_cm: null, ankle_cm: null };
   for (const field of MANUAL_FIELDS) {
     const raw = draft[field.key].trim().replace(",", ".");
     values[field.key] = null;
@@ -155,6 +164,13 @@ export default function ManualMeasurements({
                 </small>
               </label>
             ))}
+            {group.id === "girth" && (
+              <p className="manual-derived-note">
+                <Sparkles size={14} />
+                Vòng cổ, vòng đầu và vòng cổ chân do hệ thống tự tính theo chiều cao và các số đo bạn nhập, rồi dựng
+                vào mô hình. Bạn không cần đo ba vòng này.
+              </p>
+            )}
           </Fragment>
         ))}
       </form>
@@ -189,9 +205,9 @@ export default function ManualMeasurements({
       </div>
 
       <p className="scan-estimate-note">
-        Mọi vòng bạn nhập đều được khớp trên mẫu 3D: ngực, eo, mông, cổ, đầu, đùi, bắp chân và cổ chân. Vòng đùi/bắp
-        chân/cổ chân áp dụng cho cả hai chân vì một lần đo không phân biệt trái với phải. Rộng vai, dài tay và dài
-        trong chân chỉ được ghi lại để bạn đối chiếu, không dựng vào mô hình.
+        Mọi vòng bạn nhập đều được khớp trên mẫu 3D: ngực, eo, mông, đùi và bắp chân. Vòng cổ, vòng đầu và vòng cổ
+        chân do hệ thống tự tính; vòng đùi/bắp chân áp dụng cho cả hai chân vì một lần đo không phân biệt trái với
+        phải. Rộng vai, dài tay và dài trong chân chỉ được ghi lại để bạn đối chiếu, không dựng vào mô hình.
       </p>
       <div className="scan-privacy">
         <ShieldCheck size={16} />

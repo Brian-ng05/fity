@@ -14,7 +14,7 @@ from scipy.special import ellipe
 
 from app import main
 from app.images import InvalidPhoto
-from app.measurements import (LEG_EXTRA, MANUAL_LEVELS, MIDLINE_EXTRA, closed_torso_section, ellipse_perimeter,
+from app.measurements import (DERIVED_BANDS, LEG_EXTRA, MANUAL_LEVELS, MIDLINE_EXTRA, closed_torso_section, ellipse_perimeter,
                               measurement_limits,
                               fit_leg_targets, leg_girth_targets, manual_targets)
 from app.reconstruction import read_template, validate_measurements
@@ -73,20 +73,27 @@ def test_manual_entry_builds_a_displayable_model_matching_the_entered_measuremen
     key = start(client, VALUES)
     status = finish(client, key)
     assert status["status"] == "completed", status["error"]
+    # The form no longer collects neck/head/ankle: the service computed them from the
+    # entered numbers, so they are numbers here, not None.
+    computed = {key: status["measurements"][key] for key in DERIVED_BANDS}
+    assert all(isinstance(value, float) and value > 0 for value in computed.values()), computed
     assert status["measurements"] == {"height_cm": 175.0, "chest_cm": 96.0, "waist_cm": 82.0, "hip_cm": 100.0,
-                                      "neck_cm": None, "head_cm": None, "thigh_cm": None, "calf_cm": None,
-                                      "ankle_cm": None, "shoulder_width_cm": None, "arm_length_cm": None,
-                                      "inseam_cm": None}
+                                      "thigh_cm": None, "calf_cm": None,
+                                      "shoulder_width_cm": None, "arm_length_cm": None,
+                                      "inseam_cm": None, **computed}
     profile = status["body_profile"]
     assert profile["capture_mode"] == "manual"
     assert profile["measurement_source"] == "manual"
     assert profile["validation"] == "not_validated"
+    assert profile["derived_bands"] == sorted(DERIVED_BANDS)
     sources = {row["key"]: row["source"] for row in profile["measurement_details"]}
     assert sources["chest_cm"] == sources["waist_cm"] == sources["hip_cm"] == "user_input"
     assert sources["height_cm"] == "user_input"
+    # Neck/head/ankle are computed, and must not be labelled as the user's own numbers.
+    assert all(sources[key] == "derived" for key in DERIVED_BANDS)
     # Untouched anatomy stays labelled as the template's, not as the user's.
     assert sources["shoulder_width_cm"] == sources["inseam_cm"] == "unavailable"
-    assert sources["head_cm"] == "template_model"
+    assert sources["thigh_cm"] == "template_model"
     # The avatar's own cross-sections are re-measured after the fit.
     for section in profile["sections"]:
         assert section["model_cm"] == pytest.approx(section["target_cm"], abs=.5)
@@ -184,19 +191,81 @@ def test_recorded_only_numbers_are_labelled_and_never_claimed_as_model_sections(
 
 
 def test_blank_supporting_bands_keep_the_template_shape(client):
-    """An unfilled supporting band must not be invented, and must stay labelled as the model's."""
+    """A blank limb band must not be invented, and must stay labelled as the model's.
+
+    Thigh and calf are still typed, so leaving them blank keeps the template. Neck,
+    head and ankle are no longer typed at all: the service derives them, and says so.
+    """
     key = start(client, VALUES)
     status = finish(client, key)
     rows = {row["key"]: row for row in status["body_profile"]["measurement_details"]}
-    for field in (*MIDLINE_EXTRA, *LEG_EXTRA):
+    for field in ("thigh_cm", "calf_cm"):
         assert rows[field]["source"] == "template_model", field
-    assert {section["key"] for section in status["body_profile"]["sections"]} == set(VALUES) - {"height_cm"}
+    for field in DERIVED_BANDS:
+        assert rows[field]["source"] == "derived", field
+    # The three derived bands are real fitted sections, not template leftovers.
+    assert {section["key"] for section in status["body_profile"]["sections"]} == \
+        set(VALUES) - {"height_cm"} | set(DERIVED_BANDS)
     mesh = trimesh.load(main.DATA / f"{key}.glb").to_geometry()
     template = read_template()
-    for _, (_, level, center_x) in {**MIDLINE_EXTRA, **LEG_EXTRA}.items():
+    for field in ("thigh_cm", "calf_cm"):
+        _, level, center_x = LEG_EXTRA[field]
         measured, _ = closed_torso_section(mesh, level * 1.75, center_x_m=None if center_x is None else center_x * 1.75)
         expected, _ = closed_torso_section(template, level, center_x_m=center_x)
         assert measured == pytest.approx(expected * 1.75, abs=1.0)
+
+
+def test_derived_girths_are_really_shaped_into_the_exported_avatar(client):
+    """The claim is that the computed numbers land in the file, so re-measure the GLB."""
+    key = start(client, VALUES)
+    status = finish(client, key)
+    assert status["status"] == "completed", status["error"]
+    computed = {key: status["measurements"][key] for key in DERIVED_BANDS}
+    sections = {section["key"]: section for section in status["body_profile"]["sections"]}
+    assert set(DERIVED_BANDS) <= set(sections)
+    for field, value in computed.items():
+        assert sections[field]["target_cm"] == value
+    mesh = trimesh.load(main.DATA / f"{key}.glb").to_geometry()
+    for field in ("neck_cm", "head_cm"):
+        _, level, _ = MIDLINE_EXTRA[field]
+        measured, _ = closed_torso_section(mesh, level * 1.75)
+        assert measured == pytest.approx(computed[field], abs=1.5), field
+    _, level, center_x = LEG_EXTRA["ankle_cm"]
+    measured, _ = closed_torso_section(mesh, level * 1.75, center_x_m=center_x * 1.75)
+    assert measured == pytest.approx(computed["ankle_cm"], abs=1.5)
+
+
+def test_derived_girths_follow_the_entered_build_and_stay_representable(client):
+    """A heavier build gets a larger neck/ankle; the head barely moves; nothing is refused."""
+    heights = 175.
+    slim = {"height_cm": heights, "chest_cm": 84, "waist_cm": 68, "hip_cm": 88, "thigh_cm": 48, "calf_cm": 32}
+    heavy = {"height_cm": heights, "chest_cm": 104, "waist_cm": 96, "hip_cm": 116, "thigh_cm": 66, "calf_cm": 42}
+    derived = {}
+    for payload in (slim, heavy):
+        key = start(client, payload)
+        status = finish(client, key)
+        assert status["status"] == "completed", status["error"]
+        derived[payload["chest_cm"]] = {field: status["measurements"][field] for field in DERIVED_BANDS}
+    small, large = derived[84], derived[104]
+    assert small["neck_cm"] < large["neck_cm"] and small["ankle_cm"] < large["ankle_cm"]
+    # The head is mostly a function of height, so it must move far less than the neck.
+    assert large["head_cm"] - small["head_cm"] < large["neck_cm"] - small["neck_cm"]
+    # Every derived value stays inside the range one template can be scaled to.
+    limits = measurement_limits(read_template(), heights)
+    for values in derived.values():
+        for field in DERIVED_BANDS:
+            assert limits[field][0] <= values[field] <= limits[field][1], field
+
+
+def test_a_supplied_value_wins_over_derivation(client):
+    """An explicit number (the inline adjust can send one) is never overwritten."""
+    key = start(client, {**VALUES, "neck_cm": 41})
+    status = finish(client, key)
+    assert status["status"] == "completed", status["error"]
+    assert status["measurements"]["neck_cm"] == 41.0
+    rows = {row["key"]: row for row in status["body_profile"]["measurement_details"]}
+    assert rows["neck_cm"]["source"] == "user_input"
+    assert "neck_cm" not in status["body_profile"]["derived_bands"]
 
 
 def test_leg_girths_leave_the_pelvis_and_the_feet_alone():
