@@ -1,5 +1,7 @@
 > Luồng đặt hàng & Storefront Gold/Ivory mới nhất: ORDER_FLOW_HANDOFF.md (13/10/2026). Bao gồm /cart, /checkout, /orders/[id]?token=..., SQLite DB, và toàn bộ 16 ảnh Playwright verification.
 
+> Nhập số đo thủ công (song song với camera): MANUAL_MEASUREMENTS_HANDOFF.md (13/10/2026). Form `/scan` hoặc modal sản phẩm → `POST /api/scans/manual` → cùng template + cùng viewer. 12 ô: ngực/eo/mông/cổ/đầu/đùi/bắp chân/cổ chân được **khớp thật vào avatar**; rộng vai/dài tay/dài trong chân chỉ được ghi lại và mang nhãn riêng. 72 test backend, 30/30 check browser.
+
 > Flow mới nhất: CAMERA_FLOW_HANDOFF.md — chỉ camera, tự chụp chính diện → xoay 90° → tự chụp nghiêng; không upload hoặc hình nộm trước scan.
 
 > Bản cập nhật mới nhất: đọc UPPER_BODY_HANDOFF.md. Webcam thân trên là mặc định; /scan dùng màn hình kết quả mới, không còn giao diện kỹ thuật cũ.

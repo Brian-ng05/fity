@@ -17,11 +17,19 @@ import trimesh
 
 from .config import MODELS
 from .images import InvalidPhoto
-from .measurements import closed_torso_section, estimate_from_profiles, fit_measurement_targets, scale_lateral
+from .measurements import (LEG_EXTRA, MANUAL_BANDS, RECORDED_ONLY_BANDS, all_bands, closed_torso_section,
+                           estimate_from_profiles, extra_midline_targets, fit_leg_targets, fit_measurement_targets,
+                           leg_girth_targets, manual_targets, measurement_limits, merge_fit_profiles, scale_lateral)
 
 MODEL_PATH = MODELS / "pose_landmarker_full.task"
 TEMPLATE_PATH = MODELS / "body-template.obj"
 ENGINE = "mediapipe-two-photo-fit-v4"
+# The measurement path shares the template and the fitting code but needs neither
+# MediaPipe nor a photo, so it reports its own engine name.
+MEASUREMENT_ENGINE = "measurement-template-fit-v2"
+MANUAL_FIT_MESSAGE = "Số đo bạn nhập vượt quá dải mô phỏng của mẫu 3D. Kiểm tra lại chiều cao và các vòng đã nhập."
+# Labels for the numbers that are recorded but never shaped into the avatar.
+RECORDED_ONLY_LABELS = {"shoulder_width_cm": "rộng vai", "arm_length_cm": "dài tay", "inseam_cm": "dài trong chân"}
 
 _detector = None
 _detector_lock = threading.Lock()
@@ -76,6 +84,13 @@ def readiness() -> tuple[bool, str]:
     except ImportError:
         return False, "Chưa cài MediaPipe. Chạy setup.ps1 để cài thư viện backend."
     return True, "Dựng hình thể ước lượng từ 2 ảnh bằng CPU; chưa hỗ trợ khuôn mặt hoặc số đo may đo."
+
+
+def manual_readiness() -> tuple[bool, str]:
+    """Manual entry needs the template only: no MediaPipe, no camera."""
+    if not TEMPLATE_PATH.is_file():
+        return False, f"Thiếu dữ liệu model: {TEMPLATE_PATH.name}. Chạy setup.ps1."
+    return True, "Dựng hình thể từ số đo bạn nhập trên mẫu 3D có sẵn."
 
 
 def segmentation_mask(array: np.ndarray) -> np.ndarray:
@@ -320,4 +335,69 @@ def reconstruct(front: np.ndarray, side: np.ndarray, height_cm: float, destinati
     ]
     if capture_mode == "upper_body":
         warnings.insert(0, "Chế độ webcam thân trên: tỷ lệ cm suy ra từ chiều cao và tỷ lệ vai–hông của mẫu. Ngực/eo phụ thuộc giả định này; mông và chân không được đo từ ảnh. Không dùng cho may đo.")
+    return warnings, measurements, profile
+
+
+def validate_measurements(values: dict, height_cm: float) -> None:
+    """Reject numbers one template cannot be scaled to, naming the field at fault.
+
+    The guard range matches the lateral-scale limit used by the fit, so a value
+    accepted here cannot fail later for being out of the representable range.
+    """
+    limits = measurement_limits(read_template(), height_cm)
+    for key, (label, _, _) in all_bands().items():
+        value = values.get(key)
+        if value is None:
+            continue
+        low, high = limits[key]
+        if not low <= value <= high:
+            raise InvalidPhoto(
+                f"Vòng {label.lower()} {value:g} cm nằm ngoài dải mô phỏng của mẫu 3D ở chiều cao {height_cm:g} cm "
+                f"(khoảng {low:g}–{high:g} cm). Hãy kiểm tra lại số đo và chiều cao.")
+
+
+def reconstruct_from_measurements(values: dict, height_cm: float, destination: Path, report: Callable[[str], None]) -> tuple[list[str], dict[str, float | None], dict]:
+    """Build the avatar from measurements typed by the user: no photo, pose or mask.
+
+    The template is scaled to the entered height, fitted to the entered torso, neck and
+    head girths, then each leg is fitted to the entered limb girths. A band the user
+    left blank keeps its template shape instead of an invented number.
+    """
+    report("Đang dựng hình thể từ số đo đã nhập…")
+    template = read_template()
+    mesh = template.copy()
+    mesh.vertices *= height_cm / 100
+    mesh.visual.vertex_colors = [148, 170, 146, 255]
+    targets = manual_targets(template, values, height_cm) + extra_midline_targets(template, values, height_cm)
+    report("Đang khớp avatar theo các vòng bạn nhập…")
+    mesh, profile = fit_measurement_targets(mesh, targets, height_cm, MANUAL_FIT_MESSAGE)
+    mesh, leg_profile = fit_leg_targets(mesh, leg_girth_targets(values), height_cm, MANUAL_FIT_MESSAGE)
+    profile = merge_fit_profiles(profile, leg_profile)
+    measurements: dict[str, float | None] = {"height_cm": round(float(height_cm), 1)}
+    for key in list(all_bands()) + list(RECORDED_ONLY_BANDS):
+        value = values.get(key)
+        measurements[key] = round(float(value), 1) if value is not None else None
+    profile["capture_mode"] = "manual"
+    profile["measurement_source"] = "manual"
+    profile["measurement_method"] = "manual_ellipse_template_fit_v2"
+    profile["scale_method"] = "entered_circumferences"
+    profile["note"] = "Sai lệch fit chỉ so avatar với số đo bạn nhập, không phải kiểm chứng số đo đó đúng với cơ thể."
+    from .report import measurement_report
+    profile["measurement_details"] = measurement_report(mesh, measurements, profile, height_cm)
+    report("Đang hoàn thiện file 3D…")
+    mesh.export(destination, file_type="glb", include_normals=True)
+    warnings = [
+        "Mô hình dựng từ số đo bạn nhập trên mẫu cơ thể 3D có sẵn. Đây là hình thể mô phỏng, không phải bản sao 3D chính xác của cơ thể bạn.",
+        "Các vòng bạn nhập được khớp theo giả định lát cắt elip theo tỷ lệ sẵn có của mẫu, nên số vòng đúng còn hình dạng riêng của bạn thì chưa.",
+        "Chiều cao do bạn nhập. Phần cơ thể bạn không nhập (kể cả tay, bàn chân và khuôn mặt) vẫn giữ theo mẫu 3D.",
+        "Số đo bạn nhập chưa được đối chứng bằng thước dây. Đây là gợi ý tham khảo, không dùng cho may đo.",
+    ]
+    missing = [MANUAL_BANDS[key][0].lower() for key in MANUAL_BANDS if values.get(key) is None]
+    if missing:
+        warnings.insert(1, f"Bạn chưa nhập vòng {', '.join(missing)}: phần này giữ theo mẫu 3D và không dùng được để đối chiếu bảng size tương ứng.")
+    if any(values.get(key) is not None for key in LEG_EXTRA):
+        warnings.insert(2, "Vòng đùi/bắp chân/cổ chân bạn nhập được áp dụng đối xứng cho cả hai chân: một lần đo và một mẫu 3D không phân biệt chân trái với chân phải.")
+    recorded = [label for key, label in RECORDED_ONLY_LABELS.items() if values.get(key) is not None]
+    if recorded:
+        warnings.insert(3, f"{', '.join(recorded).capitalize()} bạn nhập chỉ được ghi lại để bạn đối chiếu, không dựng vào mô hình 3D.")
     return warnings, measurements, profile

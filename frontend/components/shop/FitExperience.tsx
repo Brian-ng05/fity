@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { ArrowRight, Camera, Check, LoaderCircle, RotateCcw, ScanLine, ShieldCheck, Sun } from "lucide-react";
+import { ArrowRight, Camera, Check, LoaderCircle, PencilRuler, RotateCcw, ScanLine, ShieldCheck, Sun } from "lucide-react";
 import { useBodyScan, type Job } from "../../lib/useBodyScan";
 import { money, type Product } from "../../lib/catalog";
 import { useScan, type SizeAdviceResult } from "../../lib/ScanContext";
 import ScanResult from "./ScanResult";
 import CaptureSession from "./CaptureSession";
+import ManualMeasurements, { draftFromJob, type ManualDraft } from "./ManualMeasurements";
 
 export default function FitExperience({
   product,
@@ -23,6 +24,10 @@ export default function FitExperience({
   const scanContext = useScan();
   const s = useBodyScan(scanContext.job);
   const [capturing, setCapturing] = useState(false);
+  const [entry, setEntry] = useState<"camera" | "manual">("camera");
+  const [editingManual, setEditingManual] = useState(false);
+  // Keeps the last submitted numbers so a failed or interrupted attempt reopens filled in.
+  const [manualDraft, setManualDraft] = useState<ManualDraft | undefined>(undefined);
   const [advice, setAdvice] = useState<SizeAdviceResult | null>(null);
   const [adviceError, setAdviceError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -49,6 +54,15 @@ export default function FitExperience({
 
   const currentJob: Job | null = s.job || scanContext.job;
   const isBusy = s.busy || currentJob?.status === "queued" || currentJob?.status === "processing";
+  // Only a session built from typed measurements can be re-entered as numbers.
+  const manualJob =
+    currentJob?.status === "completed" && currentJob.body_profile?.measurement_source === "manual" ? currentJob : null;
+  // Manual entry needs the template only, so it is not gated on the camera engine.
+  const manualReady = Boolean(s.health) && s.health?.engine !== "offline" && s.health?.manual_ready !== false;
+
+  useEffect(() => {
+    if (currentJob?.status === "completed") setEditingManual(false);
+  }, [currentJob?.status]);
 
   useEffect(() => {
     if (!active) setCapturing(false);
@@ -87,6 +101,8 @@ export default function FitExperience({
   }, [currentJob?.id, currentJob?.status, product.id, retry, scanContext, product]);
 
   const handleReset = useCallback(async () => {
+    setManualDraft(undefined);
+    setEditingManual(false);
     await s.clear();
     await scanContext.clearScanSession();
   }, [s, scanContext]);
@@ -116,7 +132,7 @@ export default function FitExperience({
     );
   };
 
-  if (currentJob && currentJob.status === "completed") {
+  if (currentJob && currentJob.status === "completed" && !editingManual) {
     return (
       <div className="fit-experience">
         {renderProductContextBar()}
@@ -133,6 +149,18 @@ export default function FitExperience({
           onRetry={() => setRetry((n) => n + 1)}
           error={s.error || scanContext.jobError}
           product={product}
+          onEdit={
+            manualJob
+              ? () => {
+                  // The entry mode may have been reset by a remount (product modal):
+                  // switching to the measurements form must not land on the camera panel.
+                  s.setError("");
+                  scanContext.setJobError("");
+                  setEntry("manual");
+                  setEditingManual(true);
+                }
+              : undefined
+          }
         />
       </div>
     );
@@ -165,18 +193,33 @@ export default function FitExperience({
             <ScanLine size={42} />
             <LoaderCircle size={72} className="spin" />
           </div>
-          <h2>Đang dựng hình thể của bạn</h2>
+          <h2>{entry === "manual" ? "Đang dựng hình thể từ số đo" : "Đang dựng hình thể của bạn"}</h2>
           <p>{currentJob?.stage || s.job?.stage || scanContext.job?.stage || "Đang gửi hai góc chụp…"}</p>
           <div>
-            <span>
-              <Check size={16} /> Chính diện
-            </span>
-            <span>
-              <Check size={16} /> Góc nghiêng 90°
-            </span>
+            {entry === "manual" ? (
+              <>
+                <span>
+                  <Check size={16} /> Chiều cao
+                </span>
+                <span>
+                  <Check size={16} /> Các vòng · số đo bổ sung
+                </span>
+              </>
+            ) : (
+              <>
+                <span>
+                  <Check size={16} /> Chính diện
+                </span>
+                <span>
+                  <Check size={16} /> Góc nghiêng 90°
+                </span>
+              </>
+            )}
           </div>
           <p className="scan-processing-note">
-            Bạn đã có thể rời camera. Kết quả sẽ hiện ngay tại đây.
+            {entry === "manual"
+              ? "Số đo đã được gửi. Kết quả sẽ hiện ngay tại đây."
+              : "Bạn đã có thể rời camera. Kết quả sẽ hiện ngay tại đây."}
           </p>
           {(s.error || scanContext.jobError) && (
             <div role="alert" style={{ marginTop: 16 }}>
@@ -208,15 +251,59 @@ export default function FitExperience({
       <section className="scan-onboarding">
         <div className="scan-intro">
           <div className="scan-intro-icon">
-            <ScanLine size={27} />
+            {entry === "manual" ? <PencilRuler size={27} /> : <ScanLine size={27} />}
           </div>
-          <h1>Tìm size từ hình thể của bạn.</h1>
+          <h1>{entry === "manual" ? "Nhập số đo của bạn." : "Tìm size từ hình thể của bạn."}</h1>
           <p>
-            Chỉ cần camera và chiều cao. MORPH tự chụp hai góc, dựng hình thể 3D và giúp bạn đối
-            chiếu size cho <strong>{product.name}</strong>.
+            {entry === "manual" ? (
+              <>
+                Có thước dây? Nhập chiều cao, các vòng và số đo bổ sung để MORPH dựng hình thể 3D trên mẫu có sẵn và đối
+                chiếu size cho <strong>{product.name}</strong>.
+              </>
+            ) : (
+              <>
+                Chỉ cần camera và chiều cao. MORPH tự chụp hai góc, dựng hình thể 3D và giúp bạn đối chiếu size cho{" "}
+                <strong>{product.name}</strong>.
+              </>
+            )}
           </p>
         </div>
-        <ol className="scan-journey">
+        <div className="scan-entry-switch" role="group" aria-label="Cách nhập hình thể">
+          <button type="button" aria-pressed={entry === "camera"} onClick={() => setEntry("camera")}>
+            <Camera size={16} />
+            Quét bằng camera
+          </button>
+          <button
+            type="button"
+            aria-pressed={entry === "manual"}
+            onClick={() => {
+              s.setError("");
+              scanContext.setJobError("");
+              setEntry("manual");
+            }}
+          >
+            <PencilRuler size={16} />
+            Nhập số đo thủ công
+          </button>
+        </div>
+        {entry === "manual" ? (
+          <ManualMeasurements
+            key={editingManual ? `edit-${currentJob?.id}` : `new-${manualDraft ? "retry" : "blank"}`}
+            initial={manualDraft ?? (editingManual ? draftFromJob(currentJob?.status === "completed" ? currentJob.measurements : undefined) : undefined)}
+            onSubmit={(values) => {
+              setManualDraft(draftFromJob(values));
+              // Retire the session being replaced, whichever copy of it is current.
+              void s.scanManual(values, currentJob?.id);
+            }}
+            onCancel={editingManual ? () => setEditingManual(false) : undefined}
+            submitting={s.busy || s.deleting}
+            error={s.error || scanContext.jobError}
+            ready={manualReady}
+            notReadyMessage={s.health ? "Dịch vụ dựng hình từ số đo chưa sẵn sàng." : "Đang kết nối dịch vụ dựng hình…"}
+          />
+        ) : (
+          <>
+            <ol className="scan-journey">
           <li>
             <span>01</span>
             <div>
@@ -338,6 +425,8 @@ export default function FitExperience({
             : "Ngực/eo/mông ước lượng từ hai góc chụp."}{" "}
           Chưa kiểm chứng độ chính xác trên người thật; không dùng cho may đo.
         </p>
+          </>
+        )}
       </section>
     </div>
   );

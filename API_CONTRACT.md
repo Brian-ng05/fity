@@ -13,9 +13,10 @@ Tài liệu contract dùng chung giữa Frontend và Backend. Cập nhật ngày
 
 | Method | Endpoint | Mô tả | Request | Response |
 | :--- | :--- | :--- | :--- | :--- |
-| `GET` | `/api/health` | Kiểm tra trạng thái backend & engine | None | `200 OK`: `{ ready: bool, engine: str, message: str, retention_seconds: int }` |
+| `GET` | `/api/health` | Kiểm tra trạng thái backend & engine | None | `200 OK`: `{ ready: bool, engine: str, message: str, manual_ready: bool, measurement_engine: str, manual_message: str, retention_seconds: int }` |
 | `POST` | `/api/capture-check` | Hướng dẫn tư thế và kiểm tra khung camera | `multipart/form-data`: `photo` (file, max 2MB), `view` ("front"\|"side"), `consent` (bool), `capture_mode` ("upper_body"\|"full_body") | `200 OK`: `{ ready: bool, message: str, ... }` |
 | `POST` | `/api/scans` | Khởi tạo phiên dựng hình 3D từ 2 ảnh | `multipart/form-data`: `front` (file), `side` (file), `height_cm` (float: 100..230), `consent` (bool), `capture_mode` ("upper_body"\|"full_body") | `202 Accepted`: `Job` object |
+| `POST` | `/api/scans/manual` | Khởi tạo phiên dựng hình 3D từ **số đo người dùng nhập** (không cần ảnh, không cần consent) | JSON `ManualMeasurements` (xem 2.4) | `202 Accepted`: `Job` object; `400`: Số đo vượt dải mẫu 3D (nêu tên ô); `422`: Sai kiểu/thiếu/ngoài khoảng thô; `503`: Thiếu template |
 | `GET` | `/api/scans/{key}` | Lấy trạng thái xử lý & số đo phiên scan | Path param `key: str` | `200 OK`: `Job` object, `404`: Hết hạn hoặc không tồn tại |
 | `GET` | `/api/scans/{key}/model` | Tải file mô hình GLB 3D | Path param `key: str` | `200 OK`: `model/gltf-binary`, `404`: Chưa có hoặc đã hết hạn |
 | `GET` | `/api/scans/{key}/measurements`| Tải báo cáo số đo JSON | Path param `key: str` | `200 OK`: JSON file đính kèm |
@@ -88,6 +89,29 @@ export interface SizeAdviceResponse {
 }
 ```
 
+### 2.4 ManualMeasurements Contract (Frontend gửi lên POST `/api/scans/manual`)
+```typescript
+export interface ManualMeasurements {
+  height_cm: number;           // 100..230, bắt buộc — nguồn user_input
+  chest_cm: number;            // 40..220, bắt buộc
+  waist_cm: number;            // 35..220, bắt buộc
+  hip_cm?: number | null;      // 45..250, không bắt buộc: bỏ trống thì giữ vòng mông của mẫu 3D
+  // Vòng bổ sung — ĐƯỢC khớp thật vào avatar; bỏ trống thì giữ theo mẫu 3D
+  neck_cm?: number | null;     // 20..70  — mặt cắt trên trục giữa
+  head_cm?: number | null;     // 35..90  — mặt cắt trên trục giữa
+  thigh_cm?: number | null;    // 25..110 — vòng từng chân
+  calf_cm?: number | null;     // 15..80  — vòng từng chân
+  ankle_cm?: number | null;    // 10..50  — vòng từng chân
+  // Chỉ được ghi lại, KHÔNG dựng vào mô hình 3D
+  shoulder_width_cm?: number | null; // 25..80
+  arm_length_cm?: number | null;     // 40..100
+  inseam_cm?: number | null;         // 40..130
+}
+```
+Ngoài giới hạn thô ở trên, backend còn từ chối giá trị mà **một template không thể giãn tới** (khoảng ±30–40% tỷ lệ mẫu, phụ thuộc chiều cao) bằng `400` kèm thông báo nêu rõ tên vòng đo và khoảng hợp lệ. Phiên tạo ra tuân thủ đúng `Job` ở 2.1 và dùng chung `/model`, `/measurements`, `/size-advice`, `DELETE`, với `body_profile.measurement_source = "manual"`; nguồn số đo là `user_input` cho ô đã nhập và khớp vào avatar, `user_input_unfitted` cho số chỉ ghi lại, `template_model` cho ô bỏ trống.
+
+Một số đo vòng đùi/bắp chân/cổ chân được áp **đối xứng cho cả hai chân** — engine không mô hình chân lệch, và điều này được nêu trong `warnings`.
+
 ---
 
 ## 3. Quy tắc nguồn gốc số đo (Measurement Provenance)
@@ -101,9 +125,14 @@ export interface SizeAdviceResponse {
    - Nếu `SizeChart` yêu cầu `hip_cm` (ví dụ quần/váy) và scan là `upper_body`, API trả về `status: "insufficient_measurements"` kèm thông báo: *"Chưa đủ số đo để đối chiếu bảng size."*
    - Tuyệt đối không lấy số đo mông từ mesh mẫu MakeHuman gán vào `measurements.hip_cm` để giả mạo camera đo được.
 4. **Chiều dài tay (`arm_length_cm`) và đũng quần (`inseam_cm`)**:
-   - Giữ `null`, không bịa số.
+   - Luồng ảnh: giữ `null`, không bịa số.
+   - Luồng nhập tay: nếu người dùng gõ vào thì giữ đúng số đó với nguồn `user_input_unfitted`, và **không** dựng vào mô hình.
 5. **Vòng mẫu phụ (`template_model`)**:
    - Nằm trong `body_profile.measurement_details` với nhãn nguồn rõ ràng `template_model`.
+6. **Phiên nhập số đo thủ công (`measurement_source = "manual"`)** (13/10/2026):
+   - Số người dùng nhập **và đã khớp vào avatar** (chiều cao, vòng ngực/eo/mông/cổ/đầu/đùi/bắp chân/cổ chân): nguồn `user_input`.
+   - Số người dùng nhập nhưng **không dựng vào mô hình** (rộng vai, dài tay, inseam): nguồn `user_input_unfitted`, `points_m` rỗng nên UI vô hiệu dòng đó — tuyệt đối không gắn nguồn `user_input` cho chúng vì như vậy ngụ ý avatar đã được nắn theo.
+   - Ô bỏ trống (ví dụ vòng mông, hoặc bất kỳ vòng bổ sung nào): giữ đúng số của mẫu 3D, nguồn `template_model`, **không** gán vào như số người dùng nhập; gợi ý size cần số đó trả `insufficient_measurements`.
 
 ---
 

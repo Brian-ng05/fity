@@ -8,6 +8,7 @@ import {
   Download,
   Expand,
   Image as ImageIcon,
+  PencilRuler,
   RotateCcw,
   Rotate3D,
   Ruler,
@@ -26,6 +27,7 @@ const Viewer = dynamic(() => import("../BodyViewer"), {
 
 const SOURCE: Record<MeasurementDetail["source"], string> = {
   user_input: "Bạn nhập",
+  user_input_unfitted: "Bạn nhập · không dựng vào mô hình",
   photo_estimate: "Ước lượng từ ảnh",
   photo_with_prior: "Ảnh + tỷ lệ mẫu",
   template_model: "Theo mẫu 3D",
@@ -59,6 +61,7 @@ export default function ScanResult({
   product,
   onOpenSizeChart,
   onResetFullBody,
+  onEdit,
 }: {
   job: Job;
   active: boolean;
@@ -72,6 +75,7 @@ export default function ScanResult({
   product?: Product;
   onOpenSizeChart?: () => void;
   onResetFullBody?: () => void;
+  onEdit?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [rotate, setRotate] = useState(false);
@@ -84,8 +88,15 @@ export default function ScanResult({
 
   const rows = job.body_profile?.measurement_details || [];
   const upper = job.body_profile?.capture_mode === "upper_body";
+  // The avatar was fitted to typed numbers, so no photo vocabulary applies here.
+  const manual = job.body_profile?.measurement_source === "manual";
+  const source = manual ? "Số đo bạn nhập" : upper ? "Webcam thân trên" : "Ảnh toàn thân";
   const value = (m: MeasurementDetail) =>
     m.value_cm == null ? "—" : (m.value_cm / (unit === "in" ? 2.54 : 1)).toFixed(1);
+  // Read the note back from what the service actually reported, so it stays true
+  // whichever supporting bands the user filled in.
+  const fittedLabels = rows.filter((m) => m.source === "user_input" && m.key !== "height_cm").map((m) => m.label);
+  const recordedLabels = rows.filter((m) => m.source === "user_input_unfitted").map((m) => m.label);
 
   async function fullscreen() {
     try {
@@ -144,13 +155,18 @@ export default function ScanResult({
         <div>
           <h2>Hình thể 3D của bạn</h2>
           <p>
-            {job.measurements?.height_cm} cm · {upper ? "Webcam thân trên" : "Ảnh toàn thân"} · Mô hình ước lượng
+            {job.measurements?.height_cm} cm · {source} · Mô hình ước lượng
           </p>
         </div>
         <div className="scan-header-actions">
-          <button className="scan-btn-subtle" type="button" onClick={onReset} disabled={deleting}>
+          {onEdit && (
+            <button className="scan-btn-subtle" type="button" onClick={onEdit} disabled={deleting}>
+              <PencilRuler size={15} />
+              Sửa số đo
+            </button>
+          )}          <button className="scan-btn-subtle" type="button" onClick={onReset} disabled={deleting}>
             <RotateCcw size={15} />
-            {deleting ? "Đang xóa…" : "Quét lại"}
+            {deleting ? "Đang xóa…" : manual ? "Nhập lại" : "Quét lại"}
           </button>
           <button className="scan-btn-subtle" type="button" onClick={fullscreen}>
             <Expand size={15} />
@@ -160,10 +176,14 @@ export default function ScanResult({
       </header>
 
       <p className="scan-source-note">
-        {upper
+        {manual
+          ? `Dựng trên mẫu cơ thể 3D có sẵn: ${fittedLabels.join(", ")} khớp đúng số bạn nhập; phần bạn để trống giữ theo mẫu 3D.${
+              recordedLabels.length ? ` ${recordedLabels.join(", ")} chỉ được ghi lại, không dựng vào mô hình.` : ""
+            }`
+          : upper
           ? "Không chụp chân. Ngực/eo dựa trên ảnh và tỷ lệ vai–hông giả định; phần đầu, mông và chân theo mẫu 3D."
           : "Ngực/eo/mông ước lượng từ hai ảnh. Các vòng đầu, cổ và chân trích từ mẫu 3D."}{" "}
-        Chưa kiểm chứng độ chính xác trên người thật.
+        {manual ? "Số đo bạn nhập chưa được đối chứng bằng thước dây." : "Chưa kiểm chứng độ chính xác trên người thật."}
       </p>
 
       {/* Prominent Sizing Advice & Call To Action */}
@@ -202,8 +222,10 @@ export default function ScanResult({
                 Chưa đủ dữ liệu để gợi ý (cần số đo vòng mông)
               </h4>
               <p>
-                Sản phẩm này là {isBottom ? "quần/váy" : "trang phục"} cần số đo vòng mông. Webcam thân trên chỉ ước
-                lượng ngực và eo từ ảnh; không quan sát vòng mông thực tế.
+                {manual
+                  ? "Bạn chưa nhập vòng mông, mà sản phẩm này cần số đo đó để đối chiếu bảng size."
+                  : <>Sản phẩm này là {isBottom ? "quần/váy" : "trang phục"} cần số đo vòng mông. Webcam thân trên chỉ ước
+                lượng ngực và eo từ ảnh; không quan sát vòng mông thực tế.</>}
               </p>
               <div className="scan-advice-actions">
                 <button
@@ -217,20 +239,26 @@ export default function ScanResult({
                 >
                   Xem bảng size & chọn thủ công
                 </button>
-                <button
-                  className="scan-btn-subtle"
-                  type="button"
-                  onClick={() => {
-                    if (onResetFullBody) {
-                      onResetFullBody();
-                    } else {
-                      onReset();
-                    }
-                  }}
-                  disabled={deleting}
-                >
-                  Quét lại toàn thân
-                </button>
+                {onEdit ? (
+                  <button className="scan-btn-subtle" type="button" onClick={onEdit} disabled={deleting}>
+                    Bổ sung vòng mông
+                  </button>
+                ) : (
+                  <button
+                    className="scan-btn-subtle"
+                    type="button"
+                    onClick={() => {
+                      if (onResetFullBody) {
+                        onResetFullBody();
+                      } else {
+                        onReset();
+                      }
+                    }}
+                    disabled={deleting}
+                  >
+                    Quét lại toàn thân
+                  </button>
+                )}
               </div>
             </div>
           ) : advice.candidates && advice.candidates.length > 0 ? (
@@ -305,7 +333,10 @@ export default function ScanResult({
               </button>
             ))}
           </div>
-          <p className="scan-list-foot">“Theo mẫu 3D” không phải số đo cơ thể được camera quan sát.</p>
+          <p className="scan-list-foot">
+            “Theo mẫu 3D” không phải số đo cơ thể được quan sát hay do bạn nhập. “Bạn nhập · không dựng vào mô hình” là
+            số bạn gõ vào nhưng mô hình 3D không được nắn theo.
+          </p>
         </aside>
 
         <div className="scan-stage">
@@ -411,12 +442,12 @@ export default function ScanResult({
       )}
 
       <details className="scan-limitations">
-        <summary>Cách ước lượng & Giới hạn công nghệ</summary>
+        <summary>Cách dựng hình & Giới hạn công nghệ</summary>
         {job.warnings?.map((w) => (
           <p key={w}>{w}</p>
         ))}
         <p>
-          Mô hình không tái tạo khuôn mặt và chưa mô phỏng quần áo. Vòng đo mẫu được cắt ngang tại các mức giải phẫu giả
+          Mô hình không tái tạo khuôn mặt và chưa mô phỏng quần áo. Các vòng đo mẫu được cắt ngang tại mức giải phẫu giả
           định; chưa dùng cho may đo thủ công.
         </p>
       </details>

@@ -6,16 +6,18 @@ from hashlib import sha256
 import logging
 import threading
 import time
-from typing import Literal
+from typing import Callable, Literal
 from uuid import uuid4
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from .config import DATA, MAX_UPLOAD, RESULT_TTL_SECONDS
 from .images import InvalidPhoto, decode_photo
-from .reconstruction import ENGINE, capture_feedback, close_detector, readiness, reconstruct
+from .reconstruction import (ENGINE, MEASUREMENT_ENGINE, capture_feedback, close_detector, manual_readiness,
+                             readiness, reconstruct, reconstruct_from_measurements, validate_measurements)
 from .sizing import SizeChart, recommend_size
 from .catalog import router as catalog_router
 from .orders import init_db as init_orders_db, router as orders_router
@@ -42,6 +44,30 @@ class Job:
     measurements: dict[str, float | None] = field(default_factory=dict)
     body_profile: dict = field(default_factory=dict)
     elapsed_seconds: float | None = None
+
+
+class ManualMeasurements(BaseModel):
+    """Body measurements typed by the user instead of captured on camera.
+
+    Bounds are deliberately wide and height-independent; the tighter check is
+    validate_measurements(), which knows what one template can represent. Chest
+    and waist are required because the fit needs at least one torso target.
+    The girth fields are shaped into the avatar; shoulder/arm/inseam are recorded
+    for the user to read back and are never claimed as model dimensions.
+    """
+    model_config = ConfigDict(extra="forbid")
+    height_cm: float = Field(ge=100, le=230, allow_inf_nan=False)
+    chest_cm: float = Field(ge=40, le=220, allow_inf_nan=False)
+    waist_cm: float = Field(ge=35, le=220, allow_inf_nan=False)
+    hip_cm: float | None = Field(default=None, ge=45, le=250, allow_inf_nan=False)
+    neck_cm: float | None = Field(default=None, ge=20, le=70, allow_inf_nan=False)
+    head_cm: float | None = Field(default=None, ge=35, le=90, allow_inf_nan=False)
+    thigh_cm: float | None = Field(default=None, ge=25, le=110, allow_inf_nan=False)
+    calf_cm: float | None = Field(default=None, ge=15, le=80, allow_inf_nan=False)
+    ankle_cm: float | None = Field(default=None, ge=10, le=50, allow_inf_nan=False)
+    shoulder_width_cm: float | None = Field(default=None, ge=25, le=80, allow_inf_nan=False)
+    arm_length_cm: float | None = Field(default=None, ge=40, le=100, allow_inf_nan=False)
+    inseam_cm: float | None = Field(default=None, ge=40, le=130, allow_inf_nan=False)
 
 
 jobs: dict[str, Job] = {}
@@ -88,7 +114,10 @@ app.include_router(orders_router)
 @app.get("/api/health")
 def health():
     ready, message = readiness()
-    return {"ready": ready, "engine": ENGINE, "message": message, "retention_seconds": RESULT_TTL_SECONDS}
+    manual_ok, manual_message = manual_readiness()
+    return {"ready": ready, "engine": ENGINE, "message": message, "manual_ready": manual_ok,
+            "measurement_engine": MEASUREMENT_ENGINE, "manual_message": manual_message,
+            "retention_seconds": RESULT_TTL_SECONDS}
 
 
 @app.post("/api/capture-check")
@@ -112,7 +141,8 @@ async def check_capture(photo: UploadFile = File(...), view: Literal["front", "s
     return JSONResponse(result, headers={"Cache-Control": "no-store"})
 
 
-def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm: float, capture_mode: str = "full_body"):
+def _run_job(key: str, work: Callable[[object, Callable[[str], None]], tuple], failure_stage: str = "Cần kiểm tra lại ảnh"):
+    """Run one job body on the worker thread, owning status, stages and errors."""
     started = time.perf_counter()
     with lock:
         if key not in jobs:
@@ -127,14 +157,7 @@ def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm
 
     path = DATA / f"{key}.glb"
     try:
-        result = reconstruct(front_image, side_image, height_cm, path, report, capture_mode) if capture_mode == "upper_body" else reconstruct(front_image, side_image, height_cm, path, report)
-        if isinstance(result, tuple) and len(result) == 3:
-            warnings, measurements, profile = result
-        elif isinstance(result, tuple) and len(result) == 2:
-            warnings, measurements = result
-            profile = {}
-        else:
-            warnings, measurements, profile = result, {}, {}
+        warnings, measurements, profile = work(path, report)
         with lock:
             if key not in jobs:
                 path.unlink(missing_ok=True)
@@ -158,9 +181,26 @@ def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm
         with lock:
             if key in jobs:
                 jobs[key].status = "failed"
-                jobs[key].stage = "Cần kiểm tra lại ảnh"
+                jobs[key].stage = failure_stage
                 jobs[key].error = str(exc) if isinstance(exc, InvalidPhoto) else "Không dựng được hình. Kiểm tra log backend rồi thử lại."
                 jobs[key].finished = time.time()
+
+
+def process(key: str, front_image: np.ndarray, side_image: np.ndarray, height_cm: float, capture_mode: str = "full_body"):
+    def work(path, report):
+        result = reconstruct(front_image, side_image, height_cm, path, report, capture_mode) if capture_mode == "upper_body" else reconstruct(front_image, side_image, height_cm, path, report)
+        if isinstance(result, tuple) and len(result) == 3:
+            return result
+        if isinstance(result, tuple) and len(result) == 2:
+            return result[0], result[1], {}
+        return result, {}, {}
+    _run_job(key, work)
+
+
+def process_measurements(key: str, values: dict, height_cm: float):
+    def work(path, report):
+        return reconstruct_from_measurements(values, height_cm, path, report)
+    _run_job(key, work, "Cần kiểm tra lại số đo")
 
 
 @app.post("/api/scans", status_code=202)
@@ -196,6 +236,28 @@ async def create_scan(front: UploadFile = File(...), side: UploadFile = File(...
         jobs[key] = Job(id=key)
         response = asdict(jobs[key])
     executor.submit(process, key, front_image, side_image, height_cm, capture_mode)
+    return response
+
+
+@app.post("/api/scans/manual", status_code=202)
+def create_manual_scan(payload: ManualMeasurements):
+    """Start a session from typed measurements: no photo, no consent required."""
+    ready, message = manual_readiness()
+    if not ready:
+        raise HTTPException(503, message)
+    values = payload.model_dump()
+    height_cm = values.pop("height_cm")
+    try:
+        validate_measurements(values, height_cm)
+    except InvalidPhoto as exc:
+        raise HTTPException(400, str(exc)) from exc
+    with lock:
+        if sum(j.status in {"queued", "processing"} for j in jobs.values()) >= 3:
+            raise HTTPException(429, "Demo đang xử lý nhiều phiên. Hãy thử lại sau ít phút.")
+        key = uuid4().hex
+        jobs[key] = Job(id=key)
+        response = asdict(jobs[key])
+    executor.submit(process_measurements, key, values, height_cm)
     return response
 
 

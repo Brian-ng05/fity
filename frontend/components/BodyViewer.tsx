@@ -11,7 +11,7 @@ import type {MeasurementDetail} from "../lib/useBodyScan";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
 
 export type Section = {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]};
-const SECTION_COLORS: Record<string,string> = {chest_cm:"#194e3d",waist_cm:"#a0521e",hip_cm:"#285b7e",chest:"#194e3d",waist:"#a0521e",hip:"#285b7e"};
+const SECTION_COLORS: Record<string,string> = {chest_cm:"#194e3d",waist_cm:"#a0521e",hip_cm:"#285b7e",head_cm:"#4d7a12",neck_cm:"#4a3f8f",thigh_cm:"#5c3f78",calf_cm:"#155d75",ankle_cm:"#7a5c0d",chest:"#194e3d",waist:"#a0521e",hip:"#285b7e"};
 const VIEWS = [{label:"Trước",angle:0},{label:"Nghiêng",angle:Math.PI/2},{label:"Sau",angle:Math.PI},{label:"3/4",angle:Math.PI/4}];
 
 function Surface({ object, wireframe, targetHeight, preserveOrigin = false, studio=false, technical=false, points=false }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number; preserveOrigin?: boolean; studio?:boolean;technical?:boolean;points?:boolean }) {

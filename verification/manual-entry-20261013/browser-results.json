@@ -1,0 +1,327 @@
+{
+  "url": "http://127.0.0.1:3107",
+  "suggested_size": "M",
+  "baseline_mobile_overflow_px": 172,
+  "checks": [
+    {
+      "name": "camera onboarding is the default and still intact",
+      "ok": true
+    },
+    {
+      "name": "no sample mannequin before scanning",
+      "ok": true
+    },
+    {
+      "name": "empty form shows per-field errors",
+      "ok": true,
+      "detail": "Nhập chiều cao để dựng mô hình. | Nhập vòng ngực để dựng mô hình. | Nhập vòng eo để dựng mô hình."
+    },
+    {
+      "name": "out-of-range height is rejected locally",
+      "ok": true,
+      "detail": "Chiều cao cần trong khoảng 100–230 cm."
+    },
+    {
+      "name": "the 3D viewer mounted (no loading/fallback state)",
+      "ok": true,
+      "detail": "{\"canvas\":true,\"size\":\"732x600\",\"loading\":null,\"fallback\":\"Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.\"}"
+    },
+    {
+      "name": "the form posts measurements to /api/scans/manual",
+      "ok": true,
+      "detail": "[{\"url\":\"/api/scans/manual\",\"status\":202},{\"url\":\"/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6\",\"status\":200},{\"url\":\"/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6\",\"status\":200},{\"url\":\"/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6\",\"status\":200}]"
+    },
+    {
+      "name": "the 3D viewer really rendered a body-shaped mesh",
+      "ok": true,
+      "detail": "732x600, 31942 mesh px, box 280x443, avg rgb 48,83,67"
+    },
+    {
+      "name": "WebGL created a real context (not the unsupported-browser notice)",
+      "ok": true,
+      "detail": "31942 px drawn"
+    },
+    {
+      "name": "entered values are shown as the user's own input",
+      "ok": true,
+      "detail": "[\"Chiều cao=175.0cm(Bạn nhập)\",\"Ngực=96.0cm(Bạn nhập)\",\"Eo=82.0cm(Bạn nhập)\",\"Mông=100.0cm(Bạn nhập)\",\"Rộng vai=—(Chưa đủ dữ liệu)\",\"Vòng đầu=57.2cm(Theo mẫu 3D)\",\"Vòng cổ=33.2cm(Theo mẫu 3D)\",\"Vòng đùi trái=52.5cm(Theo mẫu 3D)\",\"Vòng bắp chân trái=36.2cm(Theo mẫu 3D)\",\"Vòng cổ chân trái=22.1cm(Theo mẫu 3D)\",\"Dài tay=—(Chưa đủ dữ liệu)\",\"Dài trong chân=—(Chưa đủ dữ liệu)\"]"
+    },
+    {
+      "name": "template-only measurements stay labelled as the model's",
+      "ok": true
+    },
+    {
+      "name": "size advice was produced from the entered measurements",
+      "ok": true,
+      "detail": "Chọn size cho Áo thun Essential CottonĐối chiếu vòng ngực và eo của bạn với bảng size của sản phẩm. Gợi ý mang tính tham"
+    },
+    {
+      "name": "the GLB model endpoint served the avatar",
+      "ok": true,
+      "detail": "[{\"url\":\"/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6/model\",\"status\":200}]"
+    },
+    {
+      "name": "editing is pre-filled with the previous numbers",
+      "ok": true,
+      "detail": "175/96/82/100"
+    },
+    {
+      "name": "the edited session is a new job with the new value",
+      "ok": true,
+      "detail": "2 submissions, chest now 104"
+    },
+    {
+      "name": "the viewer shows the regenerated measurements",
+      "ok": true,
+      "detail": "[\"Chiều cao=175.0cm\",\"Ngực=104.0cm\",\"Eo=82.0cm\",\"Mông=100.0cm\",\"Rộng vai=—\",\"Vòng đầu=57.2cm\",\"Vòng cổ=33.2cm\",\"Vòng đùi trái=52.5cm\",\"Vòng bắp chân trái=36.2cm\",\"Vòng cổ chân trái=22.1cm\",\"Dài tay=—\",\"Dài trong chân=—\"]"
+    },
+    {
+      "name": "the previous session was deleted before regenerating",
+      "ok": true,
+      "detail": "[{\"url\":\"/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6\",\"status\":204}]"
+    },
+    {
+      "name": "the form is split into labelled groups",
+      "ok": true,
+      "detail": "Số đo chính | Vòng bổ sung | Số đo để đối chiếu"
+    },
+    {
+      "name": "every supporting band is sent to the service",
+      "ok": true,
+      "detail": "{\"height_cm\":170,\"chest_cm\":90,\"waist_cm\":74,\"hip_cm\":96,\"neck_cm\":35,\"head_cm\":56,\"thigh_cm\":54,\"calf_cm\":35,\"ankle_cm\":21,\"shoulder_width_cm\":40,\"arm_length_cm\":59,\"inseam_cm\":78}"
+    },
+    {
+      "name": "the body is still rendered with all the supporting bands fitted",
+      "ok": true,
+      "detail": "31826 mesh px, box 276x443"
+    },
+    {
+      "name": "fitted supporting girths are shown as the user's own input",
+      "ok": true,
+      "detail": "[\"Chiều cao=170.0cm(Bạn nhập)\",\"Ngực=90.0cm(Bạn nhập)\",\"Eo=74.0cm(Bạn nhập)\",\"Mông=96.0cm(Bạn nhập)\",\"Vòng cổ=35.0cm(Bạn nhập)\",\"Vòng đầu=56.0cm(Bạn nhập)\",\"Vòng đùi trái=54.0cm(Bạn nhập)\",\"Vòng bắp chân trái=35.0cm(Bạn nhập)\",\"Vòng cổ chân trái=21.0cm(Bạn nhập)\",\"Rộng vai=40.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài tay=59.0cm(Bạn nhập · không dựng vào mô hình)\",\"Dài trong chân=78.0cm(Bạn nhập · không dựng vào mô hình)\"]"
+    },
+    {
+      "name": "numbers that were only recorded say so",
+      "ok": true,
+      "detail": "Bạn nhập · không dựng vào mô hình / Bạn nhập · không dựng vào mô hình"
+    },
+    {
+      "name": "the added girths have a real section to draw on the avatar",
+      "ok": true,
+      "detail": "[{\"label\":\"Chiều cao\",\"disabled\":false},{\"label\":\"Ngực\",\"disabled\":false},{\"label\":\"Eo\",\"disabled\":false},{\"label\":\"Mông\",\"disabled\":false},{\"label\":\"Vòng cổ\",\"disabled\":false},{\"label\":\"Vòng đầu\",\"disabled\":false},{\"label\":\"Vòng đùi trái\",\"disabled\":false},{\"label\":\"Vòng bắp chân trái\",\"disabled\":false},{\"label\":\"Vòng cổ chân trái\",\"disabled\":false},{\"label\":\"Rộng vai\",\"disabled\":true},{\"label\":\"Dài tay\",\"disabled\":true},{\"label\":\"Dài trong chân\",\"disabled\":true}]"
+    },
+    {
+      "name": "numbers that were only recorded have no section to draw",
+      "ok": true,
+      "detail": "[{\"label\":\"Chiều cao\",\"disabled\":false},{\"label\":\"Ngực\",\"disabled\":false},{\"label\":\"Eo\",\"disabled\":false},{\"label\":\"Mông\",\"disabled\":false},{\"label\":\"Vòng cổ\",\"disabled\":false},{\"label\":\"Vòng đầu\",\"disabled\":false},{\"label\":\"Vòng đùi trái\",\"disabled\":false},{\"label\":\"Vòng bắp chân trái\",\"disabled\":false},{\"label\":\"Vòng cổ chân trái\",\"disabled\":false},{\"label\":\"Rộng vai\",\"disabled\":true},{\"label\":\"Dài tay\",\"disabled\":true},{\"label\":\"Dài trong chân\",\"disabled\":true}]"
+    },
+    {
+      "name": "the note describes what was fitted and what was only recorded",
+      "ok": true,
+      "detail": "Dựng trên mẫu cơ thể 3D có sẵn: Ngực, Eo, Mông, Vòng cổ, Vòng đầu, Vòng đùi trái, Vòng bắp chân trái, Vòng cổ chân trái khớp đúng số bạn nhập; phần bạn để trống giữ theo mẫu 3D. Rộng vai, Dài tay, Dài"
+    },
+    {
+      "name": "no horizontal overflow introduced by the manual form",
+      "ok": true,
+      "detail": "manual 172px vs camera-onboarding baseline 172px"
+    },
+    {
+      "name": "standalone /scan header already overflows a 390px viewport before this work",
+      "ok": true,
+      "note": true,
+      "detail": "overflow 172px from div.scan-product-picker, select., a.scan-back-link, svg.[object SVGAnimatedString], path.[object SVGAnimatedString], path.[object SVGAnimatedString]"
+    },
+    {
+      "name": "the product page modal builds and displays a manual model",
+      "ok": true,
+      "detail": "31770 mesh px, box 278x443, avg rgb 48,83,67"
+    },
+    {
+      "name": "the modal lists the entered measurements with their source",
+      "ok": true,
+      "detail": "[\"Chiều cao=162.0cm(Bạn nhập)\",\"Ngực=88.0cm(Bạn nhập)\",\"Eo=70.0cm(Bạn nhập)\",\"Mông=95.7cm(Theo mẫu 3D)\"]"
+    },
+    {
+      "name": "no page errors",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no console errors",
+      "ok": true,
+      "detail": ""
+    }
+  ],
+  "page_errors": [],
+  "console_errors": [],
+  "api": [
+    {
+      "url": "/api/health",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/manual",
+      "status": 202
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6/model",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/b45d10b7ed8f4564b0c0b89aeb2bf0a6",
+      "status": 204
+    },
+    {
+      "url": "/api/scans/manual",
+      "status": 202
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc/model",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/2f6486befc934af4ae0a252811f00bbc",
+      "status": 204
+    },
+    {
+      "url": "/api/scans/manual",
+      "status": 202
+    },
+    {
+      "url": "/api/scans/9c581f2ecfd14ae98d1c3bd3038dcfe4",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/9c581f2ecfd14ae98d1c3bd3038dcfe4",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/9c581f2ecfd14ae98d1c3bd3038dcfe4",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/9c581f2ecfd14ae98d1c3bd3038dcfe4",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/9c581f2ecfd14ae98d1c3bd3038dcfe4/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/9c581f2ecfd14ae98d1c3bd3038dcfe4/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/9c581f2ecfd14ae98d1c3bd3038dcfe4/model",
+      "status": 200
+    },
+    {
+      "url": "/api/health",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/manual",
+      "status": 202
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea/size-advice",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea",
+      "status": 200
+    },
+    {
+      "url": "/api/scans/f66a5ec0b01b4953a75913c60d3ed8ea/model",
+      "status": 200
+    }
+  ]
+}

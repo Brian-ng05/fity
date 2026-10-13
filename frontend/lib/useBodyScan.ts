@@ -1,11 +1,19 @@
 "use client";
 import {useState,useEffect,useRef} from "react";
-type Health = { ready: boolean; engine: string; message: string };
-type Measurements = { height_cm?: number; chest_cm?: number; waist_cm?: number; hip_cm?: number; shoulder_width_cm?: number; inseam_cm?: number | null };
-export type MeasurementDetail = {key:string;label:string;value_cm:number|null;source:"user_input"|"photo_estimate"|"photo_with_prior"|"template_model"|"unavailable";color:string;points_m:[number,number,number][]};
-type BodyProfile = { capture_mode?:string; measurement_details?:MeasurementDetail[]; fit_status?: string; max_fit_error_cm?: number; note?: string; sections?: {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]}[] };
+type Health = { ready: boolean; engine: string; message: string; manual_ready?: boolean; measurement_engine?: string; manual_message?: string };
+type Measurements = { height_cm?: number; chest_cm?: number; waist_cm?: number; hip_cm?: number; neck_cm?: number | null; head_cm?: number | null; thigh_cm?: number | null; calf_cm?: number | null; ankle_cm?: number | null; shoulder_width_cm?: number | null; arm_length_cm?: number | null; inseam_cm?: number | null };
+export type MeasurementDetail = {key:string;label:string;value_cm:number|null;source:"user_input"|"user_input_unfitted"|"photo_estimate"|"photo_with_prior"|"template_model"|"unavailable";color:string;points_m:[number,number,number][]};
+type BodyProfile = { capture_mode?:string; measurement_source?:"photos"|"manual"; measurement_details?:MeasurementDetail[]; fit_status?: string; max_fit_error_cm?: number; note?: string; sections?: {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]}[] };
 export type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; stage: string; error?: string; model_url?: string; warnings?: string[]; measurements?: Measurements; body_profile?: BodyProfile; elapsed_seconds?: number };
 type Slot = "front" | "side";
+/** Values the manual form submits: the torso bands plus every supporting band.
+ *  null means "left blank", which keeps that region on the model's own numbers. */
+export type ManualInput = {
+  height_cm: number; chest_cm: number; waist_cm: number; hip_cm: number | null;
+  neck_cm: number | null; head_cm: number | null; thigh_cm: number | null;
+  calf_cm: number | null; ankle_cm: number | null;
+  shoulder_width_cm: number | null; arm_length_cm: number | null; inseam_cm: number | null;
+};
 
 export function useBodyScan(initialJob?: Job | null) {
   const [captureMode,setCaptureMode]=useState<"upper_body"|"full_body">("upper_body");
@@ -96,6 +104,23 @@ export function useBodyScan(initialJob?: Job | null) {
     } catch (e) { setError(e instanceof Error ? e.message : "Không kết nối được backend."); }
     finally { setSubmitting(false); }
   }
+  async function scanManual(values: ManualInput, previousId?: string) {
+    setError(""); setSubmitting(true);
+    try {
+      // The session being replaced may only exist in the shared context.
+      const stale = previousId || job?.id;
+      if (stale) {
+        const deleted = await fetch(`/api/scans/${stale}`, { method: "DELETE" });
+        if (!deleted.ok && deleted.status !== 404) throw new Error("Chưa xóa được phiên cũ. Kiểm tra kết nối rồi thử lại.");
+        setJob(null);
+      }
+      const r = await fetch("/api/scans/manual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Số đo chưa hợp lệ. Hãy kiểm tra lại từng ô.");
+      setJob(data); setRotation(false);
+    } catch (e) { setError(e instanceof Error ? e.message : "Không kết nối được backend."); }
+    finally { setSubmitting(false); }
+  }
   async function clear() {
     setDeleting(true);
     try {
@@ -105,5 +130,5 @@ export function useBodyScan(initialJob?: Job | null) {
     finally { setDeleting(false); }
   }
 
-  return {captureMode,setCaptureMode,front,side,height,setHeight,consent,setConsent,health,error,setError,job,setJob,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,clear,checkHealth};
+  return {captureMode,setCaptureMode,front,side,height,setHeight,consent,setConsent,health,error,setError,job,setJob,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,scanManual,clear,checkHealth};
 }
