@@ -1,5 +1,5 @@
 /* ==========================================================================
-   MORPH STUDIO — 3D RESULT & SIZING WORKSPACE
+   FITY STUDIO — 3D RESULT & SIZING WORKSPACE
    Unified warm ivory surfaces, refined gold accents (#C6A15B), 
    and soft natural panels.
    ========================================================================== */
@@ -672,5 +672,268 @@
   }
   .scan-data-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── Reference vs model, and the adjust panel ─────────────────────────────── */
+.scan-eval {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.scan-accuracy,
+.scan-adjust {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  padding: 20px 22px;
+  box-shadow: var(--shadow-sm);
+}
+
+.scan-panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.scan-panel-head h3 {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  color: var(--text-primary);
+}
+
+.scan-panel-head > span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.scan-panel-note,
+.scan-panel-warn,
+.scan-panel-foot {
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  margin: 10px 0 0;
+}
+
+.scan-panel-note strong {
+  color: var(--text-primary);
+}
+
+.scan-panel-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: #8a5a12;
+}
+
+.scan-panel-foot:first-of-type {
+  margin-top: 12px;
+}
+
+.accuracy-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.accuracy-row {
+  display: grid;
+  grid-template-columns: 1.7fr .8fr .8fr .7fr .6fr;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.accuracy-row > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.accuracy-row > span:first-child {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.accuracy-row small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.accuracy-head {
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border-bottom-color: var(--border-strong);
+}
+
+.accuracy-head > span {
+  flex-direction: row !important;
+  align-items: center !important;
+}
+
+.accuracy-row-flagged {
+  background: rgba(179, 57, 40, .06);
+  color: #8f2f20;
+}
+
+.accuracy-row-partial {
+  color: var(--text-secondary);
+}
+
+.adjust-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.adjust-row {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 5.4rem;
+  grid-template-areas: "label slider value" "range range value";
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 12px;
+}
+
+.adjust-row > label {
+  grid-area: label;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.adjust-row > label small {
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+
+.adjust-row > input[type="range"] {
+  grid-area: slider;
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.adjust-row > .scan-height-input {
+  grid-area: value;
+}
+
+.adjust-row > small {
+  grid-area: range;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.adjust-row-bad > small,
+.adjust-bad {
+  color: #b33928;
+}
+
+.adjust-row-bad .scan-height-input {
+  border-color: #b33928;
+}
+
+.scan-panel-foot .scan-advice-actions {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1100px) {
+  .scan-eval {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Live adjust panel: single column, with a current-value stepper per band. */
+.scan-eval {
+  grid-template-columns: 1fr;
+}
+
+.adjust-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.adjust-stepper {
+  grid-area: stepper;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.adjust-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 38px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.adjust-step:hover:not(:disabled) {
+  background: var(--surface-muted);
+}
+
+.adjust-step:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.adjust-row {
+  grid-template-columns: 1fr 1fr auto;
+  grid-template-areas:
+    "label label label"
+    "slider slider stepper"
+    "range range range";
+  row-gap: 2px;
+}
+
+/* The deviation report is a small report under the viewer, not a headline panel. */
+.scan-accuracy {
+  margin-bottom: 20px;
+}
+
+.scan-accuracy .accuracy-table {
+  font-size: 12px;
+}
+
+.scan-accuracy .accuracy-row {
+  padding: 6px 6px;
+}
+
+.scan-accuracy .scan-panel-foot {
+  font-size: 11.5px;
+}
+
+@media (max-width: 650px) {
+  .scan-accuracy .accuracy-row {
+    grid-template-columns: 1.6fr .7fr .7fr .6fr .55fr;
+    font-size: 11px;
+    gap: 4px;
   }
 }

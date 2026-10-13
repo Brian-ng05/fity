@@ -176,14 +176,25 @@ def all_bands():
     return bands
 
 
-def measurement_limits(template, height_cm):
-    """Circumference range the template can be scaled to at each band, in cm."""
-    limits = {}
-    for key, (_, level, center_x) in all_bands().items():
+def band_ranges(template, height_cm):
+    """Representable cm range per band at one height, plus the template's own girth.
+
+    Exactly the ±30/40% guard the fit enforces, so a value inside this range can really
+    be built. Derived from the template geometry, never from what a user typed: it is the
+    range the model can represent, not a recommendation about anyone's body.
+    """
+    ranges = {}
+    for key, (label, level, center_x) in all_bands().items():
         perimeter_cm, _ = closed_torso_section(template, level, center_x_m=center_x)
         base_cm = perimeter_cm * height_cm / 100
-        limits[key] = (round(base_cm * MIN_FIT_FACTOR, 1), round(base_cm * MAX_FIT_FACTOR, 1))
-    return limits
+        ranges[key] = {"label": label, "base_cm": round(base_cm, 1),
+                       "min_cm": round(base_cm * MIN_FIT_FACTOR, 1), "max_cm": round(base_cm * MAX_FIT_FACTOR, 1)}
+    return ranges
+
+
+def measurement_limits(template, height_cm):
+    """Circumference range the template can be scaled to at each band, in cm."""
+    return {key: (band["min_cm"], band["max_cm"]) for key, band in band_ranges(template, height_cm).items()}
 
 
 def extra_midline_targets(template, values, height_cm):

@@ -354,7 +354,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                 <span className="fit-entry-text">
                   <strong>
                     {advice?.candidates?.length
-                      ? `MORPH AI gợi ý: Size ${advice.candidates.join(", ")}`
+                      ? `FITY AI gợi ý: Size ${advice.candidates.join(", ")}`
                       : advice?.status === "insufficient_measurements"
                       ? "Chưa đủ dữ liệu để gợi ý (cần số đo vòng mông)"
                       : job?.status === "completed"
@@ -368,7 +368,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                       ? "Webcam thân trên chưa đo vòng mông cho sản phẩm này"
                       : job?.status === "completed"
                       ? "Đối chiếu hình thể của bạn với bảng size sản phẩm"
-                      : "Tìm size của tôi với MORPH AI bằng webcam 2 góc"}
+                      : "Tìm size của tôi với FITY AI bằng webcam 2 góc"}
                   </small>
                 </span>
                 <ArrowRight size={20} />
@@ -465,7 +465,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                   <Plus size={16} />
                 </summary>
                 <p>
-                  Sản phẩm, giá bán và bảng size là dữ liệu thử nghiệm trong MORPH Studio. Giỏ hàng chỉ lưu trữ trên trình duyệt của bạn. Chưa tích hợp hệ thống thanh toán hoặc đặt hàng thật.
+                  Sản phẩm, giá bán và bảng size là dữ liệu thử nghiệm trong FITY Studio. Giỏ hàng chỉ lưu trữ trên trình duyệt của bạn. Chưa tích hợp hệ thống thanh toán hoặc đặt hàng thật.
                 </p>
               </details>
             </div>

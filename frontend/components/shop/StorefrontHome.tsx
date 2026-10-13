@@ -178,7 +178,7 @@ function StorefrontHomeContent() {
 
           <div className="hero-feature-card">
             <div className="feature-card-eyebrow">
-              <span className="feature-atelier-badge">MORPH STUDIO · 3D FIT LAB</span>
+              <span className="feature-atelier-badge">FITY STUDIO · 3D FIT LAB</span>
               <span className="feature-status-dot" title="Sẵn sàng kết nối" />
             </div>
             <h3 className="feature-card-heading">
@@ -262,7 +262,7 @@ function StorefrontHomeContent() {
           <div>
             <h2>Vừa vặn bắt đầu<br />từ bạn.</h2>
             <p>
-              Mỗi cơ thể là một tỉ lệ duy nhất. Công nghệ 3D của MORPH hỗ trợ bạn đưa ra quyết định chọn size tự tin hơn mà không cần phỏng đoán.
+              Mỗi cơ thể là một tỉ lệ duy nhất. Công nghệ 3D của FITY hỗ trợ bạn đưa ra quyết định chọn size tự tin hơn mà không cần phỏng đoán.
             </p>
             <button className="shop-text" onClick={() => openScanForProduct(essential)}>
               Trải nghiệm scan 3D ngay <ArrowRight size={17} />
@@ -327,7 +327,7 @@ function StorefrontHomeContent() {
 
 export default function StorefrontHome() {
   return (
-    <Suspense fallback={<div className="fit-lazy">Đang tải cửa hàng MORPH Studio…</div>}>
+    <Suspense fallback={<div className="fit-lazy">Đang tải cửa hàng FITY Studio…</div>}>
       <StorefrontHomeContent />
     </Suspense>
   );

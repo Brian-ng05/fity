@@ -141,7 +141,7 @@ export default function ManualMeasurements({
                     inputMode="decimal"
                     min={field.min}
                     max={field.max}
-                    step=".1"
+                    step="1"
                     placeholder={field.placeholder}
                     value={draft[field.key]}
                     onChange={(e) => update(field.key, e.target.value)}

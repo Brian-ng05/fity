@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
 import type { Job } from "./useBodyScan";
 import type { Product } from "./catalog";
 
@@ -99,13 +99,20 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
   const [activeScanProduct, setActiveScanProduct] = useState<Product | null>(null);
   const [appliedSizes, setAppliedSizes] = useState<Record<string, string>>({});
 
+  // Emptying an already-empty cache must not create a new object: a new identity here
+  // re-created the memoised context value, which re-ran the advice effect, which fetched
+  // and 404'd again — a self-sustaining loop after a session was retired.
+  const resetAdviceCache = useCallback(() => {
+    setAdviceCache((prev) => (Object.keys(prev).length ? {} : prev));
+  }, []);
+
   const setJob = useCallback((newJob: Job | null) => {
     setJobState(newJob);
     if (!newJob) {
       // Clear dependent size advice if session ends or is reset
-      setAdviceCache({});
+      resetAdviceCache();
     }
-  }, []);
+  }, [resetAdviceCache]);
 
   // Shared job polling: Maintain active job polling in ScanContext across modal open/close
   useEffect(() => {
@@ -120,7 +127,7 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
         if (r.status === 404) {
           if (alive) {
             setJobState(null);
-            setAdviceCache({});
+            resetAdviceCache();
             setJobError("Phiên đã hết hạn hoặc máy chủ đã khởi động lại. Vui lòng quét lại.");
           }
           return;
@@ -165,9 +172,9 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
       }
     }
     setJobState(null);
-    setAdviceCache({});
+    resetAdviceCache();
     setJobError("");
-  }, [job?.id]);
+  }, [job?.id, resetAdviceCache]);
 
   const fetchAdviceForProduct = useCallback(
     async (product: Product, currentJob?: Job | null): Promise<SizeAdviceResult> => {
@@ -195,7 +202,7 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
 
         if (res.status === 404) {
           setJobState(null);
-          setAdviceCache({});
+          resetAdviceCache();
           const expiredMsg = "Phiên đã hết hạn hoặc máy chủ đã khởi động lại. Vui lòng quét lại.";
           setJobError(expiredMsg);
           throw new Error(expiredMsg);
@@ -244,24 +251,33 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
     setAppliedSizes((prev) => ({ ...prev, [productId]: size }));
   }, []);
 
+  // Memoised deliberately. An inline object made the context value a new object on every
+  // provider render, so every consumer effect that listed `scanContext` in its deps re-ran
+  // on each render — which turned a 404 from a just-deleted session into a fetch storm
+  // (404 -> setJobError -> render -> fetch -> 404). The individual members are already
+  // stable callbacks/state, so the value only changes when something really changes.
+  const value = useMemo(
+    () => ({
+      job,
+      setJob,
+      jobError,
+      setJobError,
+      adviceCache,
+      fetchAdviceForProduct,
+      clearScanSession,
+      isScanModalOpen,
+      activeScanProduct,
+      openScanModal,
+      closeScanModal,
+      appliedSizes,
+      applySizeToProduct,
+    }),
+    [job, setJob, jobError, adviceCache, fetchAdviceForProduct, clearScanSession,
+     isScanModalOpen, activeScanProduct, openScanModal, closeScanModal, appliedSizes, applySizeToProduct],
+  );
+
   return (
-    <ScanContext.Provider
-      value={{
-        job,
-        setJob,
-        jobError,
-        setJobError,
-        adviceCache,
-        fetchAdviceForProduct,
-        clearScanSession,
-        isScanModalOpen,
-        activeScanProduct,
-        openScanModal,
-        closeScanModal,
-        appliedSizes,
-        applySizeToProduct,
-      }}
-    >
+    <ScanContext.Provider value={value}>
       {children}
     </ScanContext.Provider>
   );

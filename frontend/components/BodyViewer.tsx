@@ -8,13 +8,17 @@ import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import * as THREE from "three";
 import type {MeasurementDetail} from "../lib/useBodyScan";
+import { identityPositions, makeDeformer, previewLoop, previewPositions, type Deformer, type PreviewRig, type PreviewValues } from "../lib/bodyPreview";
 import type { OrbitControls as OrbitControlsType } from "three-stdlib";
+
+/** A live, browser-side adjustment preview: the rig plus the values being dragged. */
+export type PreviewState = { rig: PreviewRig; values: PreviewValues | null };
 
 export type Section = {key:string;label:string;target_cm:number;model_cm:number;fit_error_cm:number;points_m:[number,number,number][]};
 const SECTION_COLORS: Record<string,string> = {chest_cm:"#194e3d",waist_cm:"#a0521e",hip_cm:"#285b7e",head_cm:"#4d7a12",neck_cm:"#4a3f8f",thigh_cm:"#5c3f78",calf_cm:"#155d75",ankle_cm:"#7a5c0d",chest:"#194e3d",waist:"#a0521e",hip:"#285b7e"};
 const VIEWS = [{label:"Trước",angle:0},{label:"Nghiêng",angle:Math.PI/2},{label:"Sau",angle:Math.PI},{label:"3/4",angle:Math.PI/4}];
 
-function Surface({ object, wireframe, targetHeight, preserveOrigin = false, studio=false, technical=false, points=false }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number; preserveOrigin?: boolean; studio?:boolean;technical?:boolean;points?:boolean }) {
+function Surface({ object, wireframe, targetHeight, preserveOrigin = false, studio=false, technical=false, points=false, preview=null }: { object: THREE.Object3D; wireframe: boolean; targetHeight: number; preserveOrigin?: boolean; studio?:boolean;technical?:boolean;points?:boolean; preview?: PreviewState | null }) {
   const model = useMemo(() => {
     const copy = object.clone(true);
     const bounds=new THREE.Box3().setFromObject(copy), height=bounds.max.y-bounds.min.y;
@@ -84,6 +88,37 @@ function Surface({ object, wireframe, targetHeight, preserveOrigin = false, stud
     });
   }, [model, wireframe]);
 
+  // Live preview of an adjustment. Each geometry keeps its own untouched copy of the
+  // original positions, so the deformation is always recomputed from the built model
+  // rather than compounding on the previous preview. A new job brings new geometries,
+  // which have no entry yet and are snapshotted fresh — so this resets by itself.
+  const basePositions = useRef(new Map<THREE.BufferGeometry, Float32Array>());
+  // The canvas runs with frameloop="demand" unless it is auto-rotating, and mutating a
+  // geometry attribute is invisible to React, so nothing would repaint on its own: the
+  // preview has to ask for the frame explicitly.
+  const invalidate = useThree((state) => state.invalidate);
+  useEffect(() => {
+    const deformer = preview?.rig ? makeDeformer(preview.rig, preview.values) : null;
+    model.traverse((child) => {
+      if (!(child instanceof THREE.Mesh)) return;
+      const geometry = child.geometry as THREE.BufferGeometry;
+      const position = geometry.getAttribute("position") as THREE.BufferAttribute | undefined;
+      if (!position) return;
+      let base = basePositions.current.get(geometry);
+      if (!base || base.length !== position.array.length) {
+        base = Float32Array.from(position.array as Float32Array);
+        basePositions.current.set(geometry, base);
+      }
+      const next = deformer ? previewPositions(base, deformer) : identityPositions(base);
+      (position.array as Float32Array).set(next);
+      position.needsUpdate = true;
+      // The lateral map is non-uniform, so the stored normals stop describing the surface.
+      geometry.computeVertexNormals();
+      geometry.computeBoundingSphere();
+    });
+    invalidate();
+  }, [model, preview?.rig, preview?.values, invalidate]);
+
   useEffect(() => () => model.traverse((child) => {
     if (child instanceof THREE.Mesh || child instanceof THREE.Points) { (child.material as THREE.Material).dispose();child.geometry.dispose(); }
   }), [model]);
@@ -96,15 +131,16 @@ function Sample({ wireframe,studio,technical,points }: { wireframe: boolean;stud
   return <Surface object={object} wireframe={wireframe} targetHeight={1.75} studio={studio} technical={technical} points={points}/>;
 }
 
-function Result({ url, wireframe,studio,technical,points }: { url: string; wireframe: boolean;studio:boolean;technical:boolean;points:boolean }) {
+function Result({ url, wireframe,studio,technical,points,preview }: { url: string; wireframe: boolean;studio:boolean;technical:boolean;points:boolean;preview?:PreviewState | null }) {
   const model = useLoader(GLTFLoader, url);
-  return <Surface object={model.scene} wireframe={wireframe} targetHeight={1.75} preserveOrigin studio={studio} technical={technical} points={points}/>;
+  return <Surface object={model.scene} wireframe={wireframe} targetHeight={1.75} preserveOrigin studio={studio} technical={technical} points={points} preview={preview}/>;
 }
 
-function MeasurementRings({ heightCm, sections }: { heightCm:number; sections:Section[] }) {
+function MeasurementRings({ heightCm, sections, deformer=null }: { heightCm:number; sections:Section[]; deformer?:Deformer|null }) {
   const scale=1.75/(heightCm/100);
   return <group position={[0,.025,0]}>{sections.map(section=>{
-    const points=section.points_m.map(p=>[p[0]*scale,p[1]*scale,p[2]*scale] as [number,number,number]);
+    const source=deformer?previewLoop(section.points_m,deformer):section.points_m;
+    const points=source.map(p=>[p[0]*scale,p[1]*scale,p[2]*scale] as [number,number,number]);
     if(points.length<3)return null;
     return <Line key={section.key} points={points} color={SECTION_COLORS[section.key]||"#17694c"} lineWidth={2.5} />;
   })}</group>;
@@ -134,6 +170,7 @@ export default function BodyViewer({
   onSelectView,
   studio=false,
   technical=false, points=false, annotations, selectedMeasurement,
+  preview = null,
 }: {
   url?: string;
   wireframe: boolean;
@@ -145,9 +182,16 @@ export default function BodyViewer({
   onSelectView?: () => void;
   studio?:boolean;
   technical?:boolean;points?:boolean;annotations?:MeasurementDetail[];selectedMeasurement?:string;
+  preview?: PreviewState | null;
 }) {
   const [view,setView]=useState(0),[revision,setRevision]=useState(0);
   useEffect(()=>{setView(0);},[reset]);
+  // Rings and annotation lines are drawn from the service's own outlines, so they have to
+  // follow the preview too — otherwise they would sit on the old body while it moves.
+  const deformer = useMemo(
+    () => (preview?.rig ? makeDeformer(preview.rig, preview.values) : null),
+    [preview?.rig, preview?.values],
+  );
   return (
     <div className="body-viewer">
     <Canvas frameloop={autoRotate?"always":"demand"} dpr={[1, 1.5]} camera={{ position: [0, 0.95, 3.1], fov: 42 }} gl={{ antialias: true, alpha: true, preserveDrawingBuffer:technical }} fallback={<p className="viewer-fallback">Trình duyệt chưa hỗ trợ WebGL. Hãy bật tăng tốc đồ họa hoặc mở bằng Chrome.</p>}>
@@ -155,10 +199,10 @@ export default function BodyViewer({
       <directionalLight position={[-3, 4, 5]} intensity={2.2} />
       <directionalLight position={[3, 2, -3]} intensity={1.5} color="#f4f7f1" />
       <Suspense fallback={null}>
-        {url ? <Result url={url} wireframe={wireframe} studio={studio} technical={technical} points={points}/> : <Sample wireframe={wireframe} studio={studio} technical={technical} points={points}/>}
+        {url ? <Result url={url} wireframe={wireframe} studio={studio} technical={technical} points={points} preview={preview}/> : <Sample wireframe={wireframe} studio={studio} technical={technical} points={points}/>}
       </Suspense>
-      {url && showRings && !technical && sections && targetHeightCm && <MeasurementRings heightCm={targetHeightCm} sections={sections}/> }
-      {technical&&showRings&&annotations&&annotations.filter(m=>m.points_m.length>1).map(m=><Line key={m.key} points={m.points_m.map(p=>p.map(v=>v*1.75/((targetHeightCm||175)/100)) as [number,number,number])} position={[0,.025,0]} color={m.color} lineWidth={selectedMeasurement===m.key?4.5:2} transparent opacity={!selectedMeasurement||selectedMeasurement===m.key?1:.35}/>) }
+      {url && showRings && !technical && sections && targetHeightCm && <MeasurementRings heightCm={targetHeightCm} sections={sections} deformer={deformer}/> }
+      {technical&&showRings&&annotations&&annotations.filter(m=>m.points_m.length>1).map(m=><Line key={m.key} points={(deformer?previewLoop(m.points_m,deformer):m.points_m).map(p=>p.map(v=>v*1.75/((targetHeightCm||175)/100)) as [number,number,number])} position={[0,.025,0]} color={m.color} lineWidth={selectedMeasurement===m.key?4.5:2} transparent opacity={!selectedMeasurement||selectedMeasurement===m.key?1:.35}/>) }
       {technical&&<gridHelper args={[6,30,"#c2cdbf","#d8e1d5"]} position={[0,-.001,0]}/>}
       {!points && <ContactShadows position={[0, 0.01, 0]} opacity={0.38} scale={2} blur={1.5} far={1} />}
       {!studio&&!technical&&<><mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}><ringGeometry args={[0.60, 0.605, 96]} /><meshBasicMaterial color="#bcc9bd" side={THREE.DoubleSide} /></mesh>

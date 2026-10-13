@@ -15,6 +15,7 @@ from scipy.special import ellipe
 from app import main
 from app.images import InvalidPhoto
 from app.measurements import (LEG_EXTRA, MANUAL_LEVELS, MIDLINE_EXTRA, closed_torso_section, ellipse_perimeter,
+                              measurement_limits,
                               fit_leg_targets, leg_girth_targets, manual_targets)
 from app.reconstruction import read_template, validate_measurements
 
@@ -222,3 +223,37 @@ def test_out_of_template_supporting_band_names_the_field(client, field, value, l
     assert response.status_code == 400
     assert label in response.json()["detail"]
     assert main.jobs == {}
+
+
+def test_limits_endpoint_publishes_the_bounds_the_fit_really_enforces(client):
+    """The sliders must be bounded by the same guard validate_measurements() applies."""
+    body = client.get("/api/measurements/limits", params={"height_cm": 175}).json()
+    limits = measurement_limits(read_template(), 175)
+    assert set(body["bands"]) == set(limits)
+    for key, band in body["bands"].items():
+        assert (band["min_cm"], band["max_cm"]) == limits[key], key
+        assert band["min_cm"] < band["base_cm"] < band["max_cm"], key
+    # Outside the height range the model supports, and no height at all.
+    assert client.get("/api/measurements/limits", params={"height_cm": 90}).status_code == 422
+    assert client.get("/api/measurements/limits").status_code == 422
+
+
+def test_a_completed_session_can_be_rebuilt_from_its_own_numbers(client):
+    """What the adjust panel does: resubmit a session's own numbers and rebuild the avatar."""
+    original_key = start(client, SUPPORTING)
+    original = finish(client, original_key)
+    assert original["status"] == "completed", original["error"]
+
+    payload = dict(original["measurements"])
+    payload["chest_cm"] = 104                      # the one adjustment
+    rebuilt_key = start(client, payload)
+    rebuilt = finish(client, rebuilt_key)
+    assert rebuilt["status"] == "completed", rebuilt["error"]
+    sections = {section["key"]: section for section in rebuilt["body_profile"]["sections"]}
+    assert sections["chest_cm"]["target_cm"] == 104
+    # The uploaded avatar really changed, re-measured from the file itself.
+    mesh = trimesh.load(main.DATA / f"{rebuilt_key}.glb").to_geometry()
+    measured, _ = closed_torso_section(mesh, MANUAL_LEVELS["chest_cm"] * 1.75)
+    assert measured == pytest.approx(104, abs=1.5)
+    untouched, _ = closed_torso_section(mesh, MANUAL_LEVELS["waist_cm"] * 1.75)
+    assert untouched == pytest.approx(SUPPORTING["waist_cm"], abs=1.5)

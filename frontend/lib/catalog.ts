@@ -1,5 +1,5 @@
 /**
- * MORPH Studio — Product Catalog Data Contract & Sample Inventory
+ * FITY Studio — Product Catalog Data Contract & Sample Inventory
  * Centralized multi-product catalog with accurate sizing charts (cm body ranges).
  * Explicitly identified as illustrative test data.
  */
@@ -99,7 +99,7 @@ export const PRODUCTS: Product[] = [
       "Bo cổ dày 2.5cm chống giãn sau nhiều lần giặt",
       "Đường may móc xích đôi gia cố vai và sườn áo",
       "Thoáng khí và thấm hút mồ hôi tối ưu",
-      "Sản phẩm mẫu thử nghiệm trong MORPH Studio",
+      "Sản phẩm mẫu thử nghiệm trong FITY Studio",
     ],
     isFeatured: true,
     chart: {
@@ -348,7 +348,7 @@ export const PRODUCTS: Product[] = [
     details: [
       "Khả năng tản nhiệt và thoát hơi ẩm cao gấp 2 lần cotton",
       "Xử lý enzym làm mềm sợi mà không mất đi độ bền",
-      "Cúc áo khắc logo MORPH Studio tinh xảo",
+      "Cúc áo khắc logo FITY Studio tinh xảo",
     ],
     isNew: true,
     chart: {

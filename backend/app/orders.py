@@ -1,4 +1,4 @@
-"""Orders and Checkout module for MORPH Studio.
+"""Orders and Checkout module for FITY Studio.
 Handles SQLite DB persistence, price & shipping quotes, order creation with idempotency,
 and authenticated order lookup via secret token.
 """

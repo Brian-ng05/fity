@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "MORPH Backend (FastAPI)",
+      "name": "FITY Backend (FastAPI)",
       "type": "debugpy",
       "request": "launch",
       "python": "${workspaceFolder}/backend/.venv/Scripts/python.exe",

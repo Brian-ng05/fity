@@ -6,6 +6,7 @@ Head, hands, feet, facial features and much limb anatomy remain template-based.
 The output is in metres, scaled to the user's self-reported height.
 """
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 import threading
 from typing import Callable
@@ -17,7 +18,7 @@ import trimesh
 
 from .config import MODELS
 from .images import InvalidPhoto
-from .measurements import (LEG_EXTRA, MANUAL_BANDS, RECORDED_ONLY_BANDS, all_bands, closed_torso_section,
+from .measurements import (LEG_EXTRA, MANUAL_BANDS, RECORDED_ONLY_BANDS, all_bands, band_ranges, closed_torso_section,
                            estimate_from_profiles, extra_midline_targets, fit_leg_targets, fit_measurement_targets,
                            leg_girth_targets, manual_targets, measurement_limits, merge_fit_profiles, scale_lateral)
 
@@ -91,6 +92,16 @@ def manual_readiness() -> tuple[bool, str]:
     if not TEMPLATE_PATH.is_file():
         return False, f"Thiếu dữ liệu model: {TEMPLATE_PATH.name}. Chạy setup.ps1."
     return True, "Dựng hình thể từ số đo bạn nhập trên mẫu 3D có sẵn."
+
+
+@lru_cache(maxsize=64)
+def band_limits(height_cm: float) -> dict:
+    """Per-band representable range at one height.
+
+    Cached deliberately: reading the template OBJ is not free and the adjustment sliders
+    ask for this whenever the height changes. Callers must treat the result as read-only.
+    """
+    return band_ranges(read_template(), height_cm)
 
 
 def segmentation_mask(array: np.ndarray) -> np.ndarray:

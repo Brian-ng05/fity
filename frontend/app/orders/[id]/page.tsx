@@ -188,7 +188,7 @@ function OrderDetailsContent() {
                 </div>
                 <h1>Đặt hàng thành công!</h1>
                 <p>
-                  Cảm ơn bạn đã lựa chọn MORPH Studio. Chúng tôi đã tiếp nhận đơn hàng của bạn và
+                  Cảm ơn bạn đã lựa chọn FITY Studio. Chúng tôi đã tiếp nhận đơn hàng của bạn và
                   sẽ tiến hành liên hệ xác nhận size trang phục trong thời gian sớm nhất.
                 </p>
 

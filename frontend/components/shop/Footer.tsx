@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="shop-footer-container">
         <div className="shop-footer-col brand-col">
           <Link href="/" className="shop-logo">
-            MORPH<span>STUDIO</span>
+            FITY<span>STUDIO</span>
           </Link>
           <p className="footer-tagline">
             Mỗi hình thể đều khác biệt. Vừa vặn bắt đầu từ sự thấu hiểu hình thể của bạn qua công nghệ 3D.
@@ -34,7 +34,7 @@ export default function Footer() {
         </div>
 
         <div className="shop-footer-col">
-          <h4>Công nghệ MORPH AI</h4>
+          <h4>Công nghệ FITY AI</h4>
           <ul>
             <li>
               <Link href="/scan">
@@ -62,7 +62,7 @@ export default function Footer() {
       </div>
 
       <div className="shop-footer-bottom">
-        <span>© 2026 MORPH Studio · Bản quyền thuộc về nghiên cứu nội bộ</span>
+        <span>© 2026 FITY Studio · Bản quyền thuộc về nghiên cứu nội bộ</span>
         <span>Phiên bản thử nghiệm storefront 2.0</span>
       </div>
     </footer>

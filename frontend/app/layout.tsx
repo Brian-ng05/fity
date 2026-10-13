@@ -11,8 +11,8 @@ import "./capture-flow.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "MORPH Studio — Một lựa chọn vừa bạn",
-  description: "Cửa hàng thời trang MORPH Studio với công nghệ đối chiếu size và hình thể 3D qua webcam.",
+  title: "FITY Studio — Một lựa chọn vừa bạn",
+  description: "Cửa hàng thời trang FITY Studio với công nghệ đối chiếu size và hình thể 3D qua webcam.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

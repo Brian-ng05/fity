@@ -83,7 +83,10 @@ async function ready(url) {
 fs.mkdirSync(out, { recursive: true });
 process.env.TEMP = path.join(root, '.cache/tmp');
 process.env.TMP = process.env.TEMP;
-const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1', BACKEND_URL: backendUrl, MPLCONFIGDIR: path.join(root, '.cache/matplotlib'), PYTHONUNBUFFERED: '1' };
+const env = { ...process.env, NEXT_TELEMETRY_DISABLED: '1', BACKEND_URL: backendUrl, MPLCONFIGDIR: path.join(root, '.cache/matplotlib'), PYTHONUNBUFFERED: '1',
+  // Own data dir: another backend (the developer's own on port 8000) shares backend/data
+  // by default and its janitor deletes GLBs it has no session for, which would 404 ours.
+  MORPH_DATA_DIR: path.join(root, '.cache/manual-qa-data') };
 
 const checks = [];
 function check(name, ok, detail) {
@@ -140,6 +143,23 @@ async function canvasInk(page) {
   });
 }
 
+/** Downscaled ink probe: ~10x cheaper than canvasInk, for sampling during a drag. */
+async function canvasInkFast(page) {
+  return page.evaluate(() => {
+    const canvas = document.querySelector('.scan-stage canvas');
+    if (!canvas) return null;
+    const copy = document.createElement('canvas');
+    copy.width = 240;
+    copy.height = 196;
+    const context = copy.getContext('2d');
+    context.drawImage(canvas, 0, 0, copy.width, copy.height);
+    const { data } = context.getImageData(0, 0, copy.width, copy.height);
+    let ink = 0;
+    for (let i = 0; i < data.length; i += 4) if (data[i + 3] > 10 && data[i] < 170 && data[i + 1] < 190) ink++;
+    return { width: copy.width, height: copy.height, ink, total: copy.width * copy.height };
+  });
+}
+
 async function rows(page) {
   return page.$$eval('.scan-rows button', (nodes) =>
     nodes.map((node) => ({
@@ -160,6 +180,7 @@ async function rows(page) {
   const api = [];
   const posts = [];
   try {
+    fs.rmSync(env.MORPH_DATA_DIR, { recursive: true, force: true });
     // --timeout-keep-alive: uvicorn's 5s default closes an idle socket that the Next
     // dev-proxy pool still holds, which can surface as ECONNRESET on the first POST
     // after a long pause. Raising it here keeps the QA run about the feature, not the
@@ -286,6 +307,9 @@ async function rows(page) {
     await page.waitForSelector('.manual-entry');
     const groups = await page.$$eval('.manual-fields .manual-group', (nodes) => nodes.map((node) => node.firstChild.textContent.trim()));
     check('the form is split into labelled groups', groups.length === 3, groups.join(' | '));
+    const steps = await page.$$eval('.manual-fields input[type=number]', (nodes) => nodes.map((node) => node.step));
+    check('every manual field steps one whole centimetre', steps.length === 12 && steps.every((step) => step === '1'), steps.join(','));
+    check('the storefront carries the FITY brand, not MORPH', (await page.locator('.shop-logo:has-text("FITY")').count()) > 0 && (await page.locator('text=MORPH').count()) === 0, await page.textContent('.shop-logo'));
 
     const supporting = { height_cm: '170', chest_cm: '90', waist_cm: '74', hip_cm: '96', neck_cm: '35', head_cm: '56', thigh_cm: '54', calf_cm: '35', ankle_cm: '21', shoulder_width_cm: '40', arm_length_cm: '59', inseam_cm: '78' };
     for (const [field, value] of Object.entries(supporting)) await page.fill(`#manual-${field}`, value);
@@ -311,6 +335,150 @@ async function rows(page) {
     check('numbers that were only recorded have no section to draw', ['Rộng vai', 'Dài tay', 'Dài trong chân'].every(blocked), JSON.stringify(sectionRows));
     check('the note describes what was fitted and what was only recorded', (await page.textContent('.scan-source-note')).includes('chỉ được ghi lại'), (await page.textContent('.scan-source-note')).slice(0, 200));
 
+    // A reload must not lose the measurements the avatar was built from.
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('h2:has-text("Hình thể 3D của bạn")', { timeout: 60000 });
+    await page.waitForSelector('.scan-stage canvas', { timeout: 60000 });
+    await page.waitForTimeout(3500);
+    await page.screenshot({ path: path.join(out, 'manual-restored-after-reload.png'), fullPage: true });
+    const afterReload = await rows(page);
+    const restoredRow = (label) => afterReload.find((entry) => entry.label === label);
+    check('a reload restores the saved measurements and the rebuilt model', restoredRow('Ngực')?.value?.startsWith('90') && restoredRow('Vòng cổ')?.value?.startsWith('35') && restoredRow('Vòng đùi trái')?.value?.startsWith('54'), JSON.stringify(afterReload.map((entry) => `${entry.label}=${entry.value}`)));
+    const restoredInk = await canvasInk(page);
+    check('the restored session really renders the avatar again', restoredInk && restoredInk.ink > restoredInk.total * 0.02, restoredInk && `${restoredInk.ink} mesh px`);
+
+    // The form re-opens on those numbers, so an edit starts from what was saved.
+    await page.click('button:has-text("Sửa số đo")');
+    await page.waitForSelector('.manual-entry');
+    const restoredDraft = await page.evaluate(() => ['height_cm', 'chest_cm', 'neck_cm', 'thigh_cm', 'inseam_cm'].map((key) => document.querySelector(`#manual-${key}`).value));
+    check('the form re-opens on the saved numbers after a reload', restoredDraft.join('/') === '170/90/35/54/78', restoredDraft.join('/'));
+    await page.click('.manual-actions button:has-text("Hủy")');
+    await page.waitForSelector('.scan-rows');
+
+    // ── Reference vs model, then an adjustment that really rebuilds the avatar ──
+    const accuracyRows = () =>
+      page.$$eval('.accuracy-row:not(.accuracy-head)', (nodes) =>
+        nodes.map((node) => {
+          const cells = [...node.querySelectorAll(':scope > span')].map((span) => span.textContent.trim());
+          return {
+            label: cells[0] || '', reference: cells[1] || '', model: cells[2] || '', diff: cells[3] || '', percent: cells[4] || '',
+            flagged: node.className.includes('accuracy-row-flagged'), partial: node.className.includes('accuracy-row-partial'),
+          };
+        }),
+      );
+    await page.waitForSelector('.scan-accuracy .accuracy-row', { timeout: 30000 });
+    const compared = await accuracyRows();
+    const near = (text, expected) => Math.abs(parseFloat(text) - expected) <= 1.5;
+    /** Wait until the measurement list itself shows the rebuilt value, rather than
+     *  racing a fixed timeout against the old view still being mounted. */
+    const waitForMeasured = (label, value) =>
+      page.waitForFunction(
+        ({ label, value }) => {
+          const row = [...document.querySelectorAll('.scan-rows button')].find(
+            (node) => (node.querySelector('span')?.firstChild?.textContent || '').trim() === label,
+          );
+          return (row?.querySelector('b')?.textContent || '').startsWith(String(value));
+        },
+        { label, value },
+        { timeout: 60000 },
+      );
+    const chestRow = compared.find((entry) => entry.label.startsWith('Vòng ngực'));
+    check('the comparison keeps the original baseline and reports the model separately',
+      near(chestRow?.reference, 96) && near(chestRow?.model, 90) && Math.abs(parseFloat(chestRow?.diff || '0') - 6) <= 1.5,
+      JSON.stringify(chestRow));
+    check('a band only the model has shows no reference and no invented percentage',
+      compared.find((e) => e.label.startsWith('Vòng cổ'))?.reference === '—' && compared.find((e) => e.label.startsWith('Vòng cổ'))?.percent === '—',
+      JSON.stringify(compared.find((e) => e.label.startsWith('Vòng cổ'))));
+    check('the session fit residual is reported separately from the change vs the baseline',
+      (await page.textContent('.scan-accuracy')).includes('Sai lệch khớp lớn nhất'), 'fit-error line present');
+
+    const limitsCalled = api.some((entry) => entry.url.includes('/api/measurements/limits'));
+    const slider = await page.$eval('#adjust-chest_cm-range', (node) => ({ min: node.min, max: node.max, value: node.value }));
+    check('sliders use the template range the service reports, not the wide form bounds', limitsCalled && Number(slider.min) > 40 && Number(slider.max) < 220 && Number(slider.min) < Number(slider.value) && Number(slider.value) < Number(slider.max), JSON.stringify(slider));
+
+    // ── The live controls: steppers, and movement in the browser before any rebuild ──
+    // The stepper is checked first, while no debounced commit is pending: a commit that
+    // lands mid-test re-seeds the panel from the new job and would undo the click.
+    const chestBefore = await page.$eval('#adjust-chest_cm', (node) => node.value);
+    await page.click('.adjust-row:has(#adjust-chest_cm) .adjust-step:last-child');
+    // The panel coalesces updates to one animation frame, so read after that frame, not
+    // in the same tick as the click.
+    await page.waitForTimeout(150);
+    const chestStepped = await page.$eval('#adjust-chest_cm', (node) => node.value);
+    check(
+      'the stepper moves one centimetre and shows the current value',
+      Number(chestStepped) === Number(chestBefore) + 1,
+      `${chestBefore} -> ${chestStepped}`,
+    );
+    // Let that debounced commit land before sweeping, so every sweep sample is taken on
+    // one settled mesh rather than across a rebuild.
+    await waitForMeasured('Ngực', 91);
+    // Let the replacement GLB finish loading before sampling the canvas, or the first
+    // sweep sample lands on an empty frame.
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('.scan-stage canvas');
+      if (!canvas) return false;
+      const copy = document.createElement('canvas');
+      copy.width = 240; copy.height = 196;
+      const context = copy.getContext('2d');
+      context.drawImage(canvas, 0, 0, copy.width, copy.height);
+      const { data } = context.getImageData(0, 0, copy.width, copy.height);
+      let ink = 0;
+      for (let i = 0; i < data.length; i += 4) if (data[i + 3] > 10 && data[i] < 170 && data[i + 1] < 190) ink++;
+      return ink > 500;
+    }, undefined, { timeout: 60000 });
+
+    // Drag the waist across its range and sample the rendered mesh each time. No rebuild
+    // is sent during this, so anything that moves was moved by the browser.
+    const postsBeforeDrag = posts.length;
+    const sweep = [];
+    for (const value of ['56', '66', '76', '86', '96', '103']) {
+      await page.fill('#adjust-waist_cm', value);
+      await page.waitForTimeout(120);
+      const sample = await canvasInkFast(page);
+      sweep.push(`${value}:${sample?.ink}`);
+    }
+    await page.fill('#adjust-waist_cm', '56');
+    await page.waitForTimeout(120);
+    const inkNarrowest = await canvasInkFast(page);
+    await page.fill('#adjust-waist_cm', '103');
+    await page.waitForTimeout(120);
+    const inkWide = await canvasInkFast(page);
+    check(
+      'the avatar moves in the browser before any rebuild is sent',
+      posts.length === postsBeforeDrag && Boolean(inkWide && inkNarrowest) && inkNarrowest.ink > 0 && Math.abs(inkWide.ink - inkNarrowest.ink) > inkNarrowest.ink * 0.03,
+      `no new POST (still ${posts.length}, was ${postsBeforeDrag}); downscaled mesh px ${inkNarrowest?.ink} -> ${inkWide?.ink} (sweep ${sweep.join(' ')})`,
+    );
+    await page.screenshot({ path: path.join(out, 'manual-live-preview.png'), fullPage: true });
+
+    // Let the debounced commit run: the numbers become an authoritative rebuild.
+    await page.fill('#adjust-chest_cm', '102');
+    await waitForMeasured('Ngực', 102);
+    await page.waitForSelector('.scan-stage canvas', { timeout: 60000 });
+    await page.waitForSelector('.scan-accuracy .accuracy-row', { timeout: 60000 });
+    await page.waitForTimeout(2500);
+    await page.screenshot({ path: path.join(out, 'manual-adjust-accuracy.png'), fullPage: true });
+    const afterAdjust = await accuracyRows();
+    const chestAfter = afterAdjust.find((entry) => entry.label.startsWith('Vòng ngực'));
+    check('the adjustment is sent to the service and rebuilt', JSON.parse(posts[posts.length - 1]).chest_cm === 102, `chest=${JSON.parse(posts[posts.length - 1]).chest_cm}`);
+    check('the original baseline survives the rebuild', near(chestAfter?.reference, 96), JSON.stringify(chestAfter));
+    check('the model column tracks the rebuilt geometry, not the baseline', near(chestAfter?.model, 102), JSON.stringify(chestAfter));
+    check('a dimension that deviates from the baseline is highlighted', chestAfter?.flagged === true && Math.abs(parseFloat(chestAfter?.diff || '0') - 6) <= 1.5, JSON.stringify(chestAfter));
+    const inkAdjusted = await canvasInk(page);
+    check('the viewer shows the regenerated avatar', inkAdjusted && inkAdjusted.ink > inkAdjusted.total * 0.02, inkAdjusted && `${inkAdjusted.ink} mesh px`);
+    const reportBelow = await page.evaluate(() => {
+      const report = document.querySelector('.scan-accuracy');
+      const workspace = document.querySelector('.scan-workspace');
+      if (!report || !workspace) return null;
+      return report.getBoundingClientRect().top >= workspace.getBoundingClientRect().bottom - 1;
+    });
+    check('the deviation report sits below the 3D viewer as a small report', reportBelow === true, String(reportBelow));
+
+    // The preview must not linger once the service has rebuilt: the panel says so, which
+    // means the browser-side deformation has been dropped in favour of the real mesh.
+    const settled = (await page.textContent('.adjust-status')).trim();
+    check('the preview is handed over to the rebuilt model', settled.includes('Đã khớp'), settled);
+
     // Mobile layout of the manual form.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.click('button:has-text("Sửa số đo")');
@@ -332,9 +500,51 @@ async function rows(page) {
     await page.setViewportSize({ width: 1440, height: 1024 });
     await page.goto(`${frontendUrl}/products/ao-thun-essential`, { waitUntil: 'networkidle' });
     await page.click('button.fit-entry');
-    await page.waitForSelector('.fit-modal .scan-entry-switch', { timeout: 30000 });
-    await page.click('.fit-modal .scan-entry-switch button:has-text("Nhập số đo thủ công")');
-    await page.waitForSelector('.fit-modal .manual-entry');
+    await page.waitForSelector('.fit-modal', { timeout: 30000 });
+    // The saved measurements restore the previous model straight into the modal, so
+    // reset first: this block is meant to test building one from the product page.
+    // Wait until the modal has settled on something — the restored session's result or
+    // the entry switch — before deciding whether a reset is needed. A fixed delay here
+    // raced the restore and made this block flaky.
+    await page.waitForSelector('.fit-modal .scan-entry-switch, .fit-modal .scan-rows', { timeout: 30000 });
+    if ((await page.locator('.fit-modal .scan-entry-switch').count()) === 0) {
+      await page.locator('.fit-modal button:has-text("Nhập lại")').click();
+    }
+    await page.waitForSelector('.fit-modal .scan-entry-switch', { timeout: 60000 });
+
+    // The onboarding must actually settle. When a reset let the shared store re-adopt the
+    // session that was just cleared, this subtree kept remounting and the switch below
+    // could never be clicked. The same node instance after 400ms proves it is stable.
+    await page.waitForTimeout(600);
+    const settledOnboarding = await page.evaluate(async () => {
+      const node = document.querySelector('.fit-modal .scan-entry-switch');
+      const first = node?.getBoundingClientRect().top;
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const later = document.querySelector('.fit-modal .scan-entry-switch');
+      return { sameNode: later === node, top: first, after: later?.getBoundingClientRect().top };
+    });
+    check(
+      'the onboarding settles after a reset (no remount churn)',
+      settledOnboarding.sameNode === true && settledOnboarding.top === settledOnboarding.after,
+      JSON.stringify(settledOnboarding),
+    );
+
+    // This one click is retried: the modal subtree re-renders often enough that Playwright's
+    // actionability check intermittently sees a moving or replaced target, even though the
+    // onboarding node itself is stable. A dispatched click is used as the fallback.
+    const manualToggle = '.fit-modal .scan-entry-switch button:has-text("Nhập số đo thủ công")';
+    let manualFormOpen = false;
+    for (let attempt = 0; attempt < 10 && !manualFormOpen; attempt++) {
+      try {
+        await page.click(manualToggle, { timeout: 4000 });
+      } catch {
+        await page.locator(manualToggle).dispatchEvent('click').catch(() => {});
+      }
+      manualFormOpen = (await page.locator('.fit-modal .manual-entry').count()) > 0;
+      if (!manualFormOpen) await page.waitForTimeout(500);
+    }
+    check('the modal switches to manual entry', manualFormOpen, `after ${manualFormOpen ? 'a click' : '10 attempts'}`);
+    await page.waitForSelector('.fit-modal .manual-entry', { timeout: 30000 });
     await page.screenshot({ path: path.join(out, 'manual-form-modal.png'), fullPage: true });
     await page.fill('#manual-height_cm', '162');
     await page.fill('#manual-chest_cm', '88');
@@ -348,6 +558,49 @@ async function rows(page) {
     check('the product page modal builds and displays a manual model', modalInk && modalInk.ink > modalInk.total * 0.02 && modalInk.box.height > modalInk.box.width, modalInk && `${modalInk.ink} mesh px, box ${modalInk.box.width}x${modalInk.box.height}, avg rgb ${modalInk.average}`);
     const modalRows = await rows(page);
     check('the modal lists the entered measurements with their source', modalRows.find((row) => row.label === 'Ngực')?.value?.startsWith('88') && modalRows.find((row) => row.label === 'Ngực')?.source === 'Bạn nhập', JSON.stringify(modalRows.slice(0, 4).map((row) => `${row.label}=${row.value}(${row.source})`)));
+
+    // ── A camera-derived session must be adjustable too ──
+    const photoForm = new FormData();
+    photoForm.append('front', new Blob([fs.readFileSync(path.join(__dirname, 'qa/upper-front.png'))], { type: 'image/png' }), 'front.png');
+    photoForm.append('side', new Blob([fs.readFileSync(path.join(__dirname, 'qa/upper-side.png'))], { type: 'image/png' }), 'side.png');
+    photoForm.append('height_cm', '170');
+    photoForm.append('consent', 'true');
+    photoForm.append('capture_mode', 'upper_body');
+    const photoCreated = await fetch(`${backendUrl}/api/scans`, { method: 'POST', body: photoForm });
+    const photoJob = await photoCreated.json();
+    let photoDone = null;
+    for (let attempt = 0; attempt < 240; attempt++) {
+      const state = await (await fetch(`${backendUrl}/api/scans/${photoJob.id}`)).json();
+      if (state.status === 'completed' || state.status === 'failed') { photoDone = state; break; }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    check('a real photo scan completes, for the camera adjust test', photoDone?.status === 'completed', `${photoDone?.status} ${photoDone?.error || ''}`);
+
+    if (photoDone?.status === 'completed') {
+      // Adopt it exactly the way the app does after a scan, then reload.
+      await page.evaluate(({ id, values }) => {
+        localStorage.setItem('fity-manual-measurements-v1', JSON.stringify({ jobId: id, values }));
+      }, { id: photoDone.id, values: photoDone.measurements });
+      await page.goto(`${frontendUrl}/scan`, { waitUntil: 'networkidle' });
+      await page.waitForSelector('h2:has-text("Hình thể 3D của bạn")', { timeout: 60000 });
+      await page.waitForTimeout(2500);
+      check('a camera session offers both the comparison and the adjust panel', (await page.locator('.scan-adjust').count()) === 1 && (await page.locator('.scan-accuracy').count()) === 1, (await page.textContent('.scan-source-note')).slice(0, 90));
+      const cameraRows = await accuracyRows();
+      const hipRow = cameraRows.find((entry) => entry.label.startsWith('Vòng mông'));
+      check('a camera band with no reference is marked, not given a percentage', hipRow?.reference === '—' && hipRow?.percent === '—' && hipRow?.partial === true, JSON.stringify(hipRow));
+      const shoulderRow = cameraRows.find((entry) => entry.label.startsWith('Rộng vai'));
+      check('a number the 3D model does not carry is shown as absent, never invented',
+        Math.abs(parseFloat(shoulderRow?.reference || '0') - 35.9) <= 0.3 && shoulderRow?.model === 'không có' && shoulderRow?.percent === '—',
+        JSON.stringify(shoulderRow));
+
+      await page.fill('#adjust-chest_cm', '95');
+      await waitForMeasured('Ngực', 95);
+      await page.waitForSelector('.scan-accuracy .accuracy-row', { timeout: 60000 });
+      await page.waitForTimeout(1500);
+      const cameraAfter = (await accuracyRows()).find((entry) => entry.label.startsWith('Vòng ngực'));
+      check('adjusting a camera session rebuilds it and keeps the scan numbers as the reference', Math.abs(parseFloat(cameraAfter?.reference || '0') - 82.6) <= 0.2 && Math.abs(parseFloat(cameraAfter?.model || '0') - 95) <= 1.5, JSON.stringify(cameraAfter));
+      await page.screenshot({ path: path.join(out, 'camera-adjust-accuracy.png'), fullPage: true });
+    }
 
     check('no page errors', pageErrors.length === 0, pageErrors.join(' | '));
     check('no console errors', consoleErrors.length === 0, consoleErrors.join(' | '));

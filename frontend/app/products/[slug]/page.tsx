@@ -23,7 +23,7 @@ export default async function ProductPage({
   }
 
   return (
-    <Suspense fallback={<div className="fit-lazy">Đang tải sản phẩm MORPH Studio…</div>}>
+    <Suspense fallback={<div className="fit-lazy">Đang tải sản phẩm FITY Studio…</div>}>
       <ProductDetail product={product} />
     </Suspense>
   );

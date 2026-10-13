@@ -1,5 +1,6 @@
 "use client";
 import {useState,useEffect,useRef} from "react";
+import { detachManualJob, loadManualSession, saveManualSession } from "./manualSession";
 type Health = { ready: boolean; engine: string; message: string; manual_ready?: boolean; measurement_engine?: string; manual_message?: string };
 type Measurements = { height_cm?: number; chest_cm?: number; waist_cm?: number; hip_cm?: number; neck_cm?: number | null; head_cm?: number | null; thigh_cm?: number | null; calf_cm?: number | null; ankle_cm?: number | null; shoulder_width_cm?: number | null; arm_length_cm?: number | null; inseam_cm?: number | null };
 export type MeasurementDetail = {key:string;label:string;value_cm:number|null;source:"user_input"|"user_input_unfitted"|"photo_estimate"|"photo_with_prior"|"template_model"|"unavailable";color:string;points_m:[number,number,number][]};
@@ -70,6 +71,28 @@ export function useBodyScan(initialJob?: Job | null) {
     timer = setTimeout(poll, 500);
     return () => { alive = false; clearTimeout(timer); };
   }, [job?.id, job?.status, pollRetry]);
+  // A reload must not silently lose an avatar built from typed measurements. The service
+  // drops a session after an hour, so re-attach to it while it is still alive; the typed
+  // numbers stay saved either way, so the form can always rebuild in one click.
+  useEffect(() => {
+    if (initialJob) return;
+    const saved = loadManualSession();
+    if (!saved?.jobId) return;
+    const expected = saved.jobId;
+    let alive = true;
+    fetch(`/api/scans/${expected}`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: Job | null) => {
+        if (!alive) return;
+        // The user may have reset or rebuilt while this was in flight; storage is the
+        // source of truth, so a stale response must not put the old session back.
+        if (loadManualSession()?.jobId !== expected) return;
+        if (data?.status === "completed") setJob(data);
+        else if (!data) detachManualJob();
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [initialJob]);
 
   function choose(slot: Slot, file: File | null) {
     if (file) {
@@ -101,6 +124,8 @@ export function useBodyScan(initialJob?: Job | null) {
       const data = await r.json();
       if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Không gửi được ảnh. Hãy kiểm tra dữ liệu và thử lại.");
       setJob(data); setRotation(false);
+      // A photo session replaces the manual one; keep the typed numbers, drop the id.
+      detachManualJob();
     } catch (e) { setError(e instanceof Error ? e.message : "Không kết nối được backend."); }
     finally { setSubmitting(false); }
   }
@@ -117,6 +142,27 @@ export function useBodyScan(initialJob?: Job | null) {
       const r = await fetch("/api/scans/manual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
       const data = await r.json();
       if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Số đo chưa hợp lệ. Hãy kiểm tra lại từng ô.");
+      // Keep the numbers even if the build later fails, so nothing typed is lost.
+      saveManualSession(values);
+      setJob(data); setRotation(false);
+    } catch (e) { setError(e instanceof Error ? e.message : "Không kết nối được backend."); }
+    finally { setSubmitting(false); }
+  }
+  /**
+   * Rebuild for an adjustment, without retiring the current session first.
+   *
+   * Two reasons: a refused payload must not leave the user with no model at all, and the
+   * session on screen has to keep its GLB while the browser-side preview is being shown,
+   * otherwise the viewer would have nothing to deform. The caller retires the old session
+   * once the replacement has landed.
+   */
+  async function rebuildFromMeasurements(values: ManualInput) {
+    setError(""); setSubmitting(true);
+    try {
+      const r = await fetch("/api/scans/manual", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(values) });
+      const data = await r.json();
+      if (!r.ok) throw new Error(typeof data.detail === "string" ? data.detail : "Số đo chưa hợp lệ. Hãy kiểm tra lại từng ô.");
+      saveManualSession(values);
       setJob(data); setRotation(false);
     } catch (e) { setError(e instanceof Error ? e.message : "Không kết nối được backend."); }
     finally { setSubmitting(false); }
@@ -130,5 +176,5 @@ export function useBodyScan(initialJob?: Job | null) {
     finally { setDeleting(false); }
   }
 
-  return {captureMode,setCaptureMode,front,side,height,setHeight,consent,setConsent,health,error,setError,job,setJob,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,scanManual,clear,checkHealth};
+  return {captureMode,setCaptureMode,front,side,height,setHeight,consent,setConsent,health,error,setError,job,setJob,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,scanManual,rebuildFromMeasurements,clear,checkHealth};
 }

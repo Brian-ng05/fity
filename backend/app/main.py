@@ -12,11 +12,11 @@ from uuid import uuid4
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from .config import DATA, MAX_UPLOAD, RESULT_TTL_SECONDS
 from .images import InvalidPhoto, decode_photo
-from .reconstruction import (ENGINE, MEASUREMENT_ENGINE, capture_feedback, close_detector, manual_readiness,
+from .reconstruction import (ENGINE, MEASUREMENT_ENGINE, band_limits, capture_feedback, close_detector, manual_readiness,
                              readiness, reconstruct, reconstruct_from_measurements, validate_measurements)
 from .sizing import SizeChart, recommend_size
 from .catalog import router as catalog_router
@@ -106,7 +106,7 @@ async def lifespan(app):
     close_detector()
 
 
-app = FastAPI(title="MORPH AI Demo", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="FITY AI Demo", version="0.1.0", lifespan=lifespan)
 app.include_router(catalog_router)
 app.include_router(orders_router)
 
@@ -118,6 +118,23 @@ def health():
     return {"ready": ready, "engine": ENGINE, "message": message, "manual_ready": manual_ok,
             "measurement_engine": MEASUREMENT_ENGINE, "manual_message": manual_message,
             "retention_seconds": RESULT_TTL_SECONDS}
+
+
+@app.get("/api/measurements/limits")
+def measurements_limits(height_cm: float = Query(..., ge=100, le=230, allow_inf_nan=False)):
+    """Representable cm range per band at one height, for the adjustment sliders.
+
+    This is the same ±30/40% guard validate_measurements() enforces, so a value inside
+    the range will really build and one outside is refused with the band named. It is a
+    property of the template, not advice about any person's body.
+    """
+    ready, message = manual_readiness()
+    if not ready:
+        raise HTTPException(503, message)
+    return JSONResponse({"height_cm": height_cm, "unit": "cm", "engine": MEASUREMENT_ENGINE,
+                         "bands": band_limits(height_cm),
+                         "note": "Dải mà mẫu 3D có thể dãn tới ở chiều cao này (±30–40% tỷ lệ mẫu), không phải khuyến nghị về cơ thể người dùng."},
+                        headers={"Cache-Control": "no-store"})
 
 
 @app.post("/api/capture-check")
@@ -280,7 +297,7 @@ def get_model(key: str):
         path = DATA / f"{job.id}.glb"
     if not path.is_file():
         raise HTTPException(404, "Mô hình đã hết hạn.")
-    return FileResponse(path, media_type="model/gltf-binary", filename="morph-body.glb", headers={"Cache-Control": "no-store"})
+    return FileResponse(path, media_type="model/gltf-binary", filename="fity-body.glb", headers={"Cache-Control": "no-store"})
 
 
 @app.get("/api/scans/{key}/measurements")
@@ -289,7 +306,7 @@ def download_measurements(key: str):
     if job["status"] != "completed":
         raise HTTPException(409, "Chưa có số đo cho phiên này.")
     return JSONResponse({"schema_version": 1, "unit": "cm", "measurements": job["measurements"], "body_fit": job["body_profile"], "warnings": job["warnings"]},
-                        headers={"Cache-Control": "no-store", "Content-Disposition": 'attachment; filename="morph-measurements.json"'})
+                        headers={"Cache-Control": "no-store", "Content-Disposition": 'attachment; filename="fity-measurements.json"'})
 
 
 @app.post("/api/scans/{key}/size-advice")

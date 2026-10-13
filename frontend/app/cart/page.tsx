@@ -432,7 +432,7 @@ export default function CartPage() {
                     <p style={{ margin: 0 }}>
                       <strong>Lưu ý tiếp nhận đơn hàng:</strong>
                       <br />
-                      Hệ thống tiếp nhận thông tin đơn hàng để chuẩn bị sản phẩm. Nhân viên MORPH Studio
+                      Hệ thống tiếp nhận thông tin đơn hàng để chuẩn bị sản phẩm. Nhân viên FITY Studio
                       sẽ liên hệ xác nhận size và thời gian giao hàng.
                     </p>
                   </div>

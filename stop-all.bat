@@ -1,7 +1,7 @@
 @echo off
-title MORPH AI - Dung he thong
+title FITY AI - Dung he thong
 echo ========================================================
-echo   MORPH AI - Dung Backend va Frontend (Port 8000 & 3000)
+echo   FITY AI - Dung Backend va Frontend (Port 8000 & 3000)
 echo ========================================================
 echo.
 

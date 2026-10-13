@@ -12,7 +12,7 @@ function HeaderFallback() {
   return (
     <>
       <div className="shop-announcement">
-        <span className="announcement-brand">MORPH STUDIO</span>
+        <span className="announcement-brand">FITY STUDIO</span>
         <span className="announcement-divider">·</span>
         <span>Mô phỏng hình thể 3D & gợi ý size</span>
         <span className="announcement-divider">·</span>
@@ -27,8 +27,8 @@ function HeaderFallback() {
           <Menu size={22} />
         </button>
 
-        <Link href="/" className="shop-logo" aria-label="MORPH Studio trang chủ">
-          MORPH<span>STUDIO</span>
+        <Link href="/" className="shop-logo" aria-label="FITY Studio trang chủ">
+          FITY<span>STUDIO</span>
         </Link>
 
         <nav aria-label="Danh mục sản phẩm" className="desktop-nav">
@@ -103,7 +103,7 @@ function HeaderContent() {
   return (
     <>
       <div className="shop-announcement">
-        <span className="announcement-brand">MORPH STUDIO</span>
+        <span className="announcement-brand">FITY STUDIO</span>
         <span className="announcement-divider">·</span>
         <span>Mô phỏng hình thể 3D & gợi ý size</span>
         <span className="announcement-divider">·</span>
@@ -119,8 +119,8 @@ function HeaderContent() {
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
 
-        <Link href="/" className="shop-logo" aria-label="MORPH Studio trang chủ">
-          MORPH<span>STUDIO</span>
+        <Link href="/" className="shop-logo" aria-label="FITY Studio trang chủ">
+          FITY<span>STUDIO</span>
         </Link>
 
         {/* Center-aligned luxury fashion navigation bar */}
@@ -220,7 +220,7 @@ function HeaderContent() {
           >
             <div className="mobile-menu-header">
               <span className="shop-logo">
-                MORPH<span>STUDIO</span>
+                FITY<span>STUDIO</span>
               </span>
               <button
                 className="shop-icon"

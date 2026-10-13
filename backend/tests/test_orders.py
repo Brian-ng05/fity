@@ -1,4 +1,4 @@
-"""Regression tests for MORPH Studio Orders and Checkout API.
+"""Regression tests for FITY Studio Orders and Checkout API.
 Verifies quote calculations, variant validations, atomic order transactions,
 idempotency guarantees, and token-based authentication security.
 """

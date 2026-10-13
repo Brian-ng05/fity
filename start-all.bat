@@ -1,19 +1,19 @@
 @echo off
-title MORPH AI - Khoi dong he thong
+title FITY AI - Khoi dong he thong
 echo ========================================================
-echo   MORPH AI - Khoi dong Backend va Frontend tu dong
+echo   FITY AI - Khoi dong Backend va Frontend tu dong
 echo ========================================================
 echo.
 
 set SCRIPT_DIR=%~dp0
 
 echo [1/3] Dang khoi dong Backend (FastAPI :8000)...
-start "MORPH AI - Backend" powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%start-backend.ps1"
+start "FITY AI - Backend" powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%start-backend.ps1"
 
 timeout /t 3 /nobreak >nul
 
 echo [2/3] Dang khoi dong Frontend (Next.js :3000)...
-start "MORPH AI - Frontend" powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%start-frontend.ps1"
+start "FITY AI - Frontend" powershell -NoProfile -ExecutionPolicy Bypass -File "%SCRIPT_DIR%start-frontend.ps1"
 
 timeout /t 4 /nobreak >nul
 

@@ -1,4 +1,4 @@
-"""Product catalog router and data access for MORPH AI storefront."""
+"""Product catalog router and data access for FITY AI storefront."""
 import json
 from pathlib import Path
 from typing import Literal

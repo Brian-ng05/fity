@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Camera, Check, LoaderCircle, PencilRuler, RotateCcw, ScanLine, ShieldCheck, Sun } from "lucide-react";
 import { useBodyScan, type Job } from "../../lib/useBodyScan";
 import { money, type Product } from "../../lib/catalog";
@@ -7,6 +7,9 @@ import { useScan, type SizeAdviceResult } from "../../lib/ScanContext";
 import ScanResult from "./ScanResult";
 import CaptureSession from "./CaptureSession";
 import ManualMeasurements, { draftFromJob, type ManualDraft } from "./ManualMeasurements";
+import { clearManualSession, loadManualReference, loadManualSession, saveManualReference, saveManualSession } from "../../lib/manualSession";
+import type { ReferenceSet } from "../../lib/measurementCompare";
+import { buildPreviewRig, type PreviewValues } from "../../lib/bodyPreview";
 
 export default function FitExperience({
   product,
@@ -31,17 +34,42 @@ export default function FitExperience({
   const [advice, setAdvice] = useState<SizeAdviceResult | null>(null);
   const [adviceError, setAdviceError] = useState("");
   const [retry, setRetry] = useState(0);
+  // The measurements this session was first built from. Adjustments must not move it, or
+  // the comparison would end up measuring the model against itself.
+  const [reference, setReference] = useState<ReferenceSet | null>(null);
+  // Live browser-side adjustment preview: the rig plus whatever is being dragged.
+  const [previewValues, setPreviewValues] = useState<PreviewValues | null>(null);
+  // The last finished session, kept rendered while an adjustment rebuild is in flight so
+  // the avatar stays on screen (its GLB is still the one the viewer already loaded).
+  const [displayJob, setDisplayJob] = useState<Job | null>(null);
+  const [rebuilding, setRebuilding] = useState(false);
+  const retireAfterRebuild = useRef<string | null>(null);
+  // True while a session is being *started* (a scan, or the entry form opened fresh) as
+  // opposed to a model being tuned. Only a new session re-baselines the reference; an
+  // edit keeps it, which is the whole point of the comparison.
+  const newBaseline = useRef(false);
+
+  // The local hook and the shared store mirror each other. During a reset that mirroring
+  // would push the session that was just cleared straight back in, so both directions
+  // stand down until the reset has finished.
+  const resetting = useRef(false);
+  // Ids the user has explicitly cleared. The shared store can still hold one for a moment
+  // while the reset propagates, and re-adopting it is what made "Nhập lại" look broken.
+  // Keyed by id rather than by a timing flag, so a late render cannot resurrect it.
+  const cleared = useRef<Set<string>>(new Set());
 
   // Sync active job from local hook to shared ScanContext
   useEffect(() => {
-    if (s.job) {
+    if (resetting.current) return;
+    if (s.job && !cleared.current.has(s.job.id)) {
       scanContext.setJob(s.job);
     }
   }, [s.job, scanContext]);
 
   // Populate local hook with shared ScanContext job if available and not yet loaded
   useEffect(() => {
-    if (scanContext.job && !s.job) {
+    if (resetting.current) return;
+    if (scanContext.job && !s.job && !cleared.current.has(scanContext.job.id)) {
       s.setJob(scanContext.job);
     }
   }, [scanContext.job, s.job, s.setJob]);
@@ -54,15 +82,67 @@ export default function FitExperience({
 
   const currentJob: Job | null = s.job || scanContext.job;
   const isBusy = s.busy || currentJob?.status === "queued" || currentJob?.status === "processing";
-  // Only a session built from typed measurements can be re-entered as numbers.
-  const manualJob =
-    currentJob?.status === "completed" && currentJob.body_profile?.measurement_source === "manual" ? currentJob : null;
   // Manual entry needs the template only, so it is not gated on the camera engine.
   const manualReady = Boolean(s.health) && s.health?.engine !== "offline" && s.health?.manual_ready !== false;
 
   useEffect(() => {
     if (currentJob?.status === "completed") setEditingManual(false);
   }, [currentJob?.status]);
+
+  // Keep the newest finished session for display, and finish off an adjustment: retire the
+  // session it replaced and drop the preview so the authoritative mesh takes over. On a
+  // failed rebuild there is nothing to retire — the user keeps the model they had.
+  useEffect(() => {
+    if (currentJob?.status === "completed") {
+      setDisplayJob(currentJob);
+      setRebuilding(false);
+      setPreviewValues({});
+      const retire = retireAfterRebuild.current;
+      retireAfterRebuild.current = null;
+      if (retire && retire !== currentJob.id) void fetch(`/api/scans/${retire}`, { method: "DELETE" }).catch(() => {});
+    } else if (currentJob?.status === "failed") {
+      setRebuilding(false);
+      retireAfterRebuild.current = null;
+    }
+  }, [currentJob?.id, currentJob?.status]);
+
+  // Re-open the form on the numbers this browser last sent, so a reload or a return
+  // visit does not silently lose what the user typed.
+  useEffect(() => {
+    const saved = loadManualSession();
+    if (saved?.values) setManualDraft((current) => current ?? draftFromJob(saved.values));
+    const savedReference = loadManualReference();
+    if (savedReference) setReference(savedReference);
+  }, []);
+
+  // Baseline a session when one is started, and leave the baseline alone whenever an
+  // existing model is tuned: an adjustment, or a restore after a reload, must never move
+  // what the comparison is judged against. "Nhập lại" clears it, and the next session
+  // started after that becomes the new baseline.
+  useEffect(() => {
+    if (currentJob?.status === "failed") {
+      newBaseline.current = false;
+      return;
+    }
+    if (currentJob?.status !== "completed") return;
+    const started = newBaseline.current;
+    newBaseline.current = false;
+    if (!started && loadManualReference()) return;
+    const next: ReferenceSet = {
+      values: (currentJob.measurements || {}) as ReferenceSet["values"],
+      height_cm: currentJob.measurements?.height_cm,
+      origin: currentJob.body_profile?.measurement_source,
+    };
+    saveManualReference({ values: next.values, height_cm: next.height_cm, origin: next.origin });
+    setReference(next);
+  }, [currentJob?.id, currentJob?.status]);
+
+  // Remember which session came out of those numbers, so a reload can re-attach to it.
+  // Any completed session, camera or manual: a scan-derived model should come back too.
+  useEffect(() => {
+    if (currentJob?.status !== "completed") return;
+    saveManualSession((currentJob.measurements || {}) as Partial<Record<string, number | null>>, currentJob.id);
+  }, [currentJob?.id, currentJob?.status]);
 
   useEffect(() => {
     if (!active) setCapturing(false);
@@ -101,18 +181,33 @@ export default function FitExperience({
   }, [currentJob?.id, currentJob?.status, product.id, retry, scanContext, product]);
 
   const handleReset = useCallback(async () => {
-    setManualDraft(undefined);
-    setEditingManual(false);
-    await s.clear();
-    await scanContext.clearScanSession();
-  }, [s, scanContext]);
+    resetting.current = true;
+    try {
+      setManualDraft(undefined);
+      setEditingManual(false);
+      // "Nhập lại" means start over: forget the saved numbers and the baseline too.
+      clearManualSession();
+      setReference(null);
+      if (currentJob?.id) cleared.current.add(currentJob.id);
+      await s.clear();
+      await scanContext.clearScanSession();
+    } finally {
+      resetting.current = false;
+    }
+  }, [s, scanContext, currentJob?.id]);
 
   const handleResetFullBody = useCallback(async () => {
-    await s.clear();
-    await scanContext.clearScanSession();
-    s.setCaptureMode("full_body");
-    setCapturing(false);
-  }, [s, scanContext]);
+    resetting.current = true;
+    try {
+      if (currentJob?.id) cleared.current.add(currentJob.id);
+      await s.clear();
+      await scanContext.clearScanSession();
+      s.setCaptureMode("full_body");
+      setCapturing(false);
+    } finally {
+      resetting.current = false;
+    }
+  }, [s, scanContext, currentJob?.id]);
 
   const renderProductContextBar = () => {
     if (!product) return null;
@@ -132,12 +227,19 @@ export default function FitExperience({
     );
   };
 
-  if (currentJob && currentJob.status === "completed" && !editingManual) {
+  // While an adjustment rebuild is in flight, keep showing the session it is replacing:
+  // that GLB is the one the viewer already has, so the live preview still has a body to
+  // deform instead of flashing a processing screen or the sample mannequin.
+  const shownJob: Job | null =
+    currentJob?.status === "completed" ? currentJob : rebuilding ? displayJob : null;
+  const previewRig = useMemo(() => buildPreviewRig(shownJob), [shownJob]);
+
+  if (shownJob && !editingManual) {
     return (
       <div className="fit-experience">
         {renderProductContextBar()}
         <ScanResult
-          job={currentJob}
+          job={shownJob}
           active={active}
           onReset={handleReset}
           onResetFullBody={handleResetFullBody}
@@ -149,8 +251,22 @@ export default function FitExperience({
           onRetry={() => setRetry((n) => n + 1)}
           error={s.error || scanContext.jobError}
           product={product}
+          preview={previewRig ? { rig: previewRig, values: previewValues } : null}
+          onPreview={setPreviewValues}
+          rebuilding={rebuilding}
+          onAdjust={(values) => {
+            // Create the replacement first and retire the old session only once the new
+            // model lands, so a refused payload never costs the user their avatar. An
+            // adjustment also keeps the baseline: it is the model being tuned, not a new one.
+            newBaseline.current = false;
+            retireAfterRebuild.current = shownJob.id;
+            setRebuilding(true);
+            s.setError("");
+            scanContext.setJobError("");
+            void s.rebuildFromMeasurements(values);
+          }}
           onEdit={
-            manualJob
+            shownJob.status === "completed"
               ? () => {
                   // The entry mode may have been reset by a remount (product modal):
                   // switching to the measurements form must not land on the camera panel.
@@ -161,6 +277,7 @@ export default function FitExperience({
                 }
               : undefined
           }
+          reference={reference}
         />
       </div>
     );
@@ -177,6 +294,8 @@ export default function FitExperience({
             setCapturing(false);
             s.choose("front", pair.front);
             s.choose("side", pair.side);
+            // A scan starts a session, so its estimates become the new baseline.
+            newBaseline.current = true;
             void s.scan(pair);
           }}
         />
@@ -257,12 +376,12 @@ export default function FitExperience({
           <p>
             {entry === "manual" ? (
               <>
-                Có thước dây? Nhập chiều cao, các vòng và số đo bổ sung để MORPH dựng hình thể 3D trên mẫu có sẵn và đối
+                Có thước dây? Nhập chiều cao, các vòng và số đo bổ sung để FITY dựng hình thể 3D trên mẫu có sẵn và đối
                 chiếu size cho <strong>{product.name}</strong>.
               </>
             ) : (
               <>
-                Chỉ cần camera và chiều cao. MORPH tự chụp hai góc, dựng hình thể 3D và giúp bạn đối chiếu size cho{" "}
+                Chỉ cần camera và chiều cao. FITY tự chụp hai góc, dựng hình thể 3D và giúp bạn đối chiếu size cho{" "}
                 <strong>{product.name}</strong>.
               </>
             )}
@@ -292,6 +411,10 @@ export default function FitExperience({
             initial={manualDraft ?? (editingManual ? draftFromJob(currentJob?.status === "completed" ? currentJob.measurements : undefined) : undefined)}
             onSubmit={(values) => {
               setManualDraft(draftFromJob(values));
+              saveManualSession(values);
+              // Entering numbers from the onboarding form starts a session; re-entering
+              // them from "Sửa số đo" is editing the one on screen and keeps its baseline.
+              newBaseline.current = !editingManual;
               // Retire the session being replaced, whichever copy of it is current.
               void s.scanManual(values, currentJob?.id);
             }}

@@ -14,8 +14,8 @@ export default function Page() {
   return (
     <main className="storefront scan-standalone">
       <header className="shop-header">
-        <Link href="/" className="shop-logo" aria-label="MORPH Studio trang chủ">
-          MORPH<span>STUDIO</span>
+        <Link href="/" className="shop-logo" aria-label="FITY Studio trang chủ">
+          FITY<span>STUDIO</span>
         </Link>
         <div className="scan-product-picker">
           <label htmlFor="scan-product-select">

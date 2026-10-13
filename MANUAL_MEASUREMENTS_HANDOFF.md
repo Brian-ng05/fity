@@ -82,3 +82,139 @@ Toán quy đổi vòng trên trục giữa như cũ: không có ảnh nghiêng t
 - Vòng bổ sung mới chỉ được chốt bằng pytest ở tầng backend; nên port `review-ui.cjs`/`upper-ui.cjs` sang workspace này để có browser check cho luồng ảnh.
 - Chưa hỗ trợ chân lệch (trái/phải khác nhau) và chưa hỗ trợ vòng bắp tay.
 - Cân nhắc sửa hai phát hiện ở mục 4 (header mobile và keep-alive proxy) trong một lần riêng, kèm ảnh kiểm tra ở 390 px.
+
+---
+
+## 6. Bổ sung (cùng ngày 13/10/2026)
+
+### 6.1 Spinner nhập số đo
+
+`ManualMeasurements.tsx` đổi `step=".1"` → `step="1"`: mỗi lần bấm mũi tên tăng/giảm đúng **1 cm**. Vẫn gõ được số thập phân (`88.5`) vì form dùng `noValidate` + `validateManual()`, và style lỗi bám `aria-invalid` chứ không phải `:invalid` của trình duyệt. Ô chiều cao ở chế độ camera giữ nguyên vì yêu cầu chỉ nói về chế độ nhập tay.
+
+### 6.2 Lưu số đo để mở lại vẫn còn
+
+`frontend/lib/manualSession.ts` (mới) lưu số đo đã gửi + id phiên vào `localStorage` (`fity-manual-measurements-v1`). `useBodyScan` lưu khi submit, và khi tải lại trang thì **nối lại phiên còn sống** (GET `/api/scans/{id}`) để hiện lại mô hình, danh sách số đo và gợi ý size; nếu phiên đã bị dịch vụ xoá thì **số đo vẫn còn** và form mở sẵn để dựng lại bằng một cú bấm. Quét camera thì bỏ id nhưng giữ số. Nút **Nhập lại** xoá cả hai.
+
+Ranh giới có chủ ý: sau khi phiên hết hạn (1 giờ, hoặc backend khởi động lại) việc tải lại trang khôi phục **số đo**, không khôi phục mô hình. Không tự POST dựng phiên mới mỗi lần mở trang, vì như vậy chỉ cần mở một trang là sinh job và file GLB.
+
+Phần "sửa số đo sau khi tạo model" **đã có sẵn** (nút `Sửa số đo`), nên việc bổ sung ở đây là nửa "lưu" của yêu cầu.
+
+### 6.3 Hai lỗi thật đã phát hiện và sửa
+
+1. **`Nhập lại` không xoá được phiên.** `FitExperience` giữ hai chiều đồng bộ giữa hook cục bộ và `ScanContext`; trong lúc reset, chiều "context → local" đẩy lại phiên vừa bị xoá vào ngay, nên màn hình kết quả không bao giờ biến mất. Đã chặn bằng cờ `resetting` cho cả hai chiều trong lúc reset (`handleReset`, `handleResetFullBody`). Lỗi này có từ trước, chỉ khó gặp trong modal cho tới khi tính năng lưu số đo làm modal luôn mở bằng một phiên đã khôi phục.
+2. **Tranh chấp khi khôi phục.** Phản hồi khôi phục có thể về **sau** khi người dùng bấm `Nhập lại`, dựng lại phiên cũ. Đã kiểm tra lại `localStorage` sau khi fetch xong: nếu id đã đổi thì bỏ qua phản hồi (storage là nguồn sự thật).
+
+### 6.4 Đổi tên thương hiệu MORPH → FITY
+
+Phạm vi: **chỉ chữ hiển thị cho người dùng**. `MORPH STUDIO` → `FITY STUDIO`, `MORPH AI` → `FITY AI` (giữ nguyên cấu trúc logo hai tông `FITY<span>STUDIO</span>`), gồm: metadata/tiêu đề trang, header, footer, storefront, `ScanResult`, `ProductDetail`, trang `/scan`, giỏ hàng, thanh toán, đơn hàng, dữ liệu sản phẩm (`catalog_data.json`, `catalog.ts`), tiêu đề FastAPI, docstring các module, comment đầu file CSS, tiêu đề cửa sổ `start-all.bat`/`stop-all.bat`, tên cấu hình trong `.vscode/launch.json`.
+
+Cố ý **giữ nguyên** (đã nêu rõ khi hỏi): biến môi trường `MORPH_REVIEW`, `MORPH_QA_SKIP_BUILD`, `MORPH_ORDERS_DB`; tên package `morph-ai-frontend`; khoá `localStorage` `morph-demo-cart-v1/v2` và `morph-demo-wishlist-v1`; `thread_name_prefix="morph-scan"`; và các định danh **nói về biến dạng hình học chứ không phải thương hiệu**: `morphCoord`, `morphSkin`, `morphFabric`, cache key `morph-studio-bodysuit-v1` trong `BodyViewer.tsx` (đổi nhầm sẽ làm hỏng shader).
+
+Chưa đổi (ngoài phạm vi đã chọn): toàn bộ `*.md`, `.impeccable/design.json`, `design/scan-reference.prompt.txt`. Lưu ý `HUONG_DAN_CHAY.md` dòng 58 vẫn ghi tên cấu hình `MORPH Backend (FastAPI)` — tên này vừa đổi trong `.vscode/launch.json` nên tài liệu đó lệch thêm một chỗ (trước đó đã lệch vì trỏ `D:\MORPH-AI`).
+
+### 6.5 Một cái bẫy hạ tầng: hai backend dùng chung `backend/data`
+
+`cleanup()` cố ý xoá mọi `.glb` không có phiên tương ứng trong bộ nhớ (đúng cho việc khởi động lại, nhưng **phá hoại khi có hai server cùng sống**). Khi chạy QA trong lúc backend của người dùng vẫn mở ở cổng 8000, janitor của backend kia đã xoá file mô hình của phiên QA → `GET /model` trả 404 dù job vẫn `completed`. Đã thêm `MORPH_DATA_DIR` (mặc định vẫn là `backend/data`) và harness QA dùng thư mục riêng `.cache/manual-qa-data`. Đây cũng là điều cần biết khi chạy song song dev và QA.
+
+### 6.6 Kiểm tra đã chạy (bổ sung)
+
+- Backend: **72 passed** (`pytest backend/tests`).
+- Frontend: `npx tsc --noEmit` sạch; `next build --webpack` pass.
+- Browser thật: **35/35 check pass** (trước là 30). Check mới: 12 ô đều `step=1`; thương hiệu hiện `FITY` và **không còn chuỗi `MORPH`** trên trang; **tải lại trang khôi phục đúng số đo đã lưu (170/90/35/54/78) và dựng lại avatar** (31 826 px); form mở lại đúng số đã lưu; ảnh mới `manual-restored-after-reload.png`.
+- Một check cũ phải cập nhật: khối modal nay mở bằng phiên đã khôi phục nên harness phải bấm `Nhập lại` trước khi kiểm tra tạo mới từ trang sản phẩm — chính bước này đã lộ ra lỗi 6.3.1.
+
+---
+
+## 7. Chỉnh số đo & đối chiếu độ chính xác (13/10/2026)
+
+### 7.1 Có gì mới
+
+Sau khi mô hình 3D được dựng, màn hình kết quả có thêm hai khối (mục `.scan-eval`, đặt ngay dưới gợi ý size):
+
+- **Chỉnh số đo** — thanh trượt cho 8 vòng mà engine thật sự nắn được (ngực/eo/mông/cổ/đầu/đùi/bắp chân/cổ chân) + ô số, nút **Cập nhật mô hình** và **Về số gốc**. Dải trượt lấy từ dịch vụ nên kéo trong dải luôn dựng được.
+- **Đối chiếu với mô hình 3D** — mỗi dòng: số **gốc** | số **mô hình 3D** | **lệch** | **%**, kèm nhãn cho biết số mô hình là vòng đã khớp theo số nhập hay là phần mẫu giữ nguyên.
+
+Cả hai khối có mặt cho **mọi phiên đã dựng xong**, kể cả phiên từ camera: số ước lượng từ ảnh trở thành số gốc, sửa rồi bấm Cập nhật sẽ dựng lại bằng pipeline số đo sẵn có.
+
+### 7.2 Số "mô hình 3D" lấy từ đâu (không phải số người dùng)
+
+- Vòng đã khớp: `body_profile.sections[].model_cm` — engine **đo lại mặt cắt trên lưới đã dựng**, không phải số đã nhập.
+- Vòng không nhập nhưng mô hình có (đầu/cổ/đùi/bắp chân/cổ chân khi để trống): `measurement_details[].value_cm` với `source = "template_model"`, cũng đo trên lưới.
+- Vòng chỉ để ghi lại (rộng vai, dài tay, inseam): mô hình **không có** → hiện `không có`, `%` là `—`, không bịa giá trị.
+- Vòng chỉ mô hình có mà không có số gốc: hiện số mô hình, `%` là `—` (không tính được phần trăm).
+
+`value_cm` của dòng `user_input` (tức số người dùng gõ) **bị bỏ qua có chủ ý** trong bảng so sánh — dùng nó sẽ là lặp lại số nhập rồi gọi đó là số mô hình.
+
+### 7.3 Số gốc (reference) được giữ thế nào
+
+- Số gốc được chốt khi một phiên **bắt đầu**: quét camera, hoặc gửi form nhập số đo từ màn hình bắt đầu.
+- Mọi thao tác **chỉnh** mô hình — thanh trượt Cập nhật, hoặc form mở từ nút `Sửa số đo` — **không** đổi số gốc. Đây chính là yêu cầu "giữ số gốc để còn đối chiếu".
+- Nút **Nhập lại** xoá cả số gốc lẫn phiên; phiên bắt đầu sau đó là số gốc mới.
+- Số gốc lưu cùng phiên trong `localStorage` (`fity-manual-measurements-v1`), nên tải lại trang vẫn còn.
+- Lần tải lại trang khôi phục phiên nhưng **không** tự đặt lại số gốc: hàm khôi phục kiểm tra storage sau khi fetch xong nên phản hồi về muộn không đè được.
+
+### 7.4 Endpoint mới
+
+`GET /api/measurements/limits?height_cm=175` → `{height_cm, unit, engine, bands: {chest_cm: {label, base_cm, min_cm, max_cm}, ...}, note}`, `422` ngoài 100–230. Đây đúng là dải ±30–40% mà `validate_measurements()` dùng, nên giá trị trong dải luôn dựng được. `band_ranges()` sinh dữ liệu này và `measurement_limits()` gọi lại nó (giá trị không đổi, có test khẳng định). `band_limits()` bọc `lru_cache(64)` vì đọc file OBJ không rẻ mà thanh trượt hỏi theo từng chiều cao.
+
+### 7.5 Đã sửa trong lúc làm
+
+Lỗi của chính phần này, phát hiện qua test: `saveManualSession()` ghi đè cả object nên **xoá mất số gốc** mỗi lần dựng lại; đã sửa để giữ `reference`.
+
+### 7.6 Giới hạn phải nói đúng
+
+- **Lệch nhỏ không phải là độ chính xác.** Vòng đã khớp thì mô hình được nắn theo đúng số đó, nên lệch ~0 chỉ nghĩa là khớp trúng mục tiêu, không phải mô hình đúng với cơ thể thật. Câu này in ngay trong bảng.
+- Phiên từ ảnh: bấm Cập nhật sẽ **dựng lại từ số đo** trên mẫu 3D, nên hình thể có thể khác bản dựng theo đường viền ảnh dù không đổi số nào. Đã ghi rõ trong khối Chỉnh số đo khi phiên là từ ảnh.
+- Vẫn **không có SMPL-X/SAM/PyTorch** trong dự án này; engine là MediaPipe Pose Landmarker + biến dạng mẫu MakeHuman. Yêu cầu gốc có nhắc "SMPL-X fitting pipeline" — không tồn tại, nên đã tái dùng engine thật. Muốn đổi engine phải đánh giá checkpoint/license/GPU riêng.
+- Một vòng nằm ngoài dải mẫu (có thể gặp ở phiên từ ảnh) sẽ hiện cảnh báo và **chặn** nút Cập nhật, thay vì để dịch vụ từ chối sau một vòng gửi.
+
+### 7.7 Kiểm tra đã chạy
+
+- Backend: **74 passed** (thêm 2 test): endpoint trả đúng dải `measurement_limits()` (và `422` khi thiếu/ngoài chiều cao); một phiên dựng xong **gửi lại chính số của nó** với ngực 104 → phiên mới hoàn tất và **đo lại trên file GLB** đúng 104 cm còn vòng eo không đổi.
+- Browser thật: **49/49 check pass** (trước là 35). Check mới: bảng đối chiếu giữ số gốc 96.0 trong khi mô hình 90.0 (lệch 6.0, 6.3%); số chỉ mô hình có thì không có phần trăm; số mô hình không có thì hiện `không có`; thanh trượt đúng dải dịch vụ (51.7–103.4 ở 170 cm); **Cập nhật mô hình dựng lại thật** (chest 102 → danh sách hiện 102.0, viewer vẽ lại 32 535 px); **số gốc vẫn 96.0** sau khi dựng lại; dòng lệch được tô nổi; và một **phiên camera thật** (quét ảnh upper) cũng hiện đủ hai khối, sửa ngực → 95 và số gốc 82.6 giữ nguyên.
+- Ảnh: `manual-adjust-accuracy.png`, `camera-adjust-accuracy.png`.
+
+### 7.8 Phát hiện ngoài phạm vi (chưa sửa)
+
+Khi `Nhập lại`, client còn gọi `size-advice` cho phiên vừa xoá và nhận 404 lặp lại (~18 lần trong một lần reset). Nguyên nhân: effect gợi ý size trong `FitExperience` phụ thuộc vào `scanContext` mà giá trị provider **không được memo hoá**, nên effect chạy lại mỗi lần provider render; khi 404 thì `setJobError`/`setAdviceCache` lại gây render. Đây là lỗi có từ trước, không do tính năng này, nhưng gây gọi thừa API. Cách sửa gọn nhất là memo hoá value của `ScanContext.Provider` (hoặc bỏ `scanContext` khỏi dependency), nên làm ở một lần riêng.
+
+---
+
+## 8. Chỉnh số đo trực tiếp trên trình duyệt & báo cáo lệch (13/10/2026)
+
+### 8.1 Đổi gì so với mục 7
+
+Trước đây bấm **Cập nhật mô hình** thì phải chờ dịch vụ dựng lại rồi viewer mới đổi. Giờ **mô hình đổi ngay trên trình duyệt khi kéo**, không cần chạy lại model để thấy kết quả.
+
+- `frontend/lib/bodyPreview.ts` (mới) — biến dạng lưới ở phía trình duyệt, **mô phỏng theo đúng cách engine làm**: cùng mức giải phẫu, cùng quy tắc ghim hệ số của `factor_knots()` (0 / .38 / .84 / .875), cùng ánh xạ ngang `scale_lateral` và cùng mặt nạ độ sâu, rồi tới lượt chân với mặt nạ bám hình dạng và độ mờ ở háng (.46). Nội suy dùng monotone cubic (Fritsch–Carlson) xấp xỉ `PchipInterpolator`. Rig lấy từ chính `body_profile.sections[].points_m` / `measurement_details[].points_m` mà dịch vụ đã đo, nên **không bịa kích thước nào**.
+- `BodyViewer.tsx` — nhận `preview={{rig, values}}`, giữ **bản sao vị trí gốc cho từng geometry** (nên biến dạng luôn tính lại từ mô hình đã dựng, không cộng dồn), và **gọi `invalidate()`** — lỗi thật đã gặp: canvas chạy `frameloop="demand"`, sửa attribute của geometry thì React không biết nên **không có gì vẽ lại**; thiếu `invalidate()` thì kéo mà hình đứng yên. Vòng đo và đường đo cũng được biến dạng theo, nếu không chúng sẽ nằm lại trên thân cũ.
+- `MeasurementAdjust.tsx` — mỗi vòng có **thanh trượt + nút − / + theo từng 1 cm** và ô số hiện giá trị hiện tại; cập nhật được **gộp về một lần mỗi khung hình** (rAF) vì kéo chuột phát sự kiện nhanh hơn tốc độ biến dạng 13k đỉnh.
+- Không còn nút **Cập nhật mô hình**. Số được **gửi đi dựng lại sau khi ngừng tay 700 ms**, và trạng thái hiện rõ: `Đang xem trước…` → `Đang dựng lại mô hình…` → `Đã khớp với mô hình`.
+- **Báo cáo lệch được chuyển xuống dưới viewer** (`ScanResult` render `MeasurementAccuracy` sau `.scan-workspace`), thu nhỏ thành báo cáo gọn.
+- `useBodyScan.rebuildFromMeasurements()` (mới) — **tạo phiên mới trước, chỉ xoá phiên cũ sau khi phiên mới xong**. Hai lý do: payload bị từ chối thì người dùng vẫn còn mô hình đang xem, và phiên đang hiển thị phải giữ được file GLB để preview có thân mà biến dạng. `FitExperience` giữ `displayJob` (phiên hoàn tất gần nhất) để **vẫn hiện mô hình trong lúc dựng lại**, thay vì nhảy sang màn hình "đang xử lý".
+
+### 8.2 Vì sao vẫn phải dựng lại ở dịch vụ
+
+Preview là **xấp xỉ phía trình duyệt**, không phải engine. Nếu chỉ preview mà không dựng lại thì file GLB tải về sẽ khác thứ đang nhìn thấy — không chấp nhận được. Nên: kéo thì trình duyệt đổi ngay, dừng tay thì dịch vụ dựng lại và mô hình chính thức thay thế preview. Trạng thái `Đã khớp với mô hình` chính là lúc preview đã được trả lại cho mô hình thật.
+
+### 8.3 Lỗi thật đã sửa trong lúc làm
+
+1. **`invalidate()` bị thiếu** (mục 8.1) — kéo thanh trượt mà canvas không vẽ lại.
+2. **Nút `Nhập lại` vẫn có thể bị "sống lại" phiên cũ.** Cờ `resetting` được nhả trong `finally`, tức **trước khi** React chạy các effect được bảo vệ, nên một render muộn vẫn đẩy phiên vừa xoá trở lại. Đã thay bằng **tập id đã xoá** (`cleared`): cả hai chiều đồng bộ bỏ qua id đó, dựa trên dữ liệu chứ không dựa vào thời điểm. Harness có check `the onboarding settles after a reset` so **cùng một node DOM sau 400 ms** để chốt việc này.
+3. **Ô nhiễm vòng lặp gợi ý size** (đã nêu ở mục 7.8) — đã sửa gốc: memo hoá value của `ScanContext.Provider`, và `resetAdviceCache()` không tạo object mới khi cache đã rỗng (chính việc tạo object mới là thứ nuôi vòng lặp 404).
+
+### 8.4 Kiểm tra đã chạy
+
+- Backend: **74 passed** (không đổi).
+- Frontend: `npx tsc --noEmit` sạch; `next build --webpack` pass.
+- Browser thật: **55/55 check pass** (trước là 52). Check mới đáng chú ý:
+  - `the avatar moves in the browser before any rebuild is sent` — quét vòng eo qua 56…103 và lấy mẫu lưới đã vẽ: **3013 → 3062 → 3101 → 3151 → 3209 → 3235 px**, tăng đơn điệu, và **số lượt POST vẫn là 4** trong suốt quá trình. Đây là bằng chứng trực tiếp rằng trình duyệt tự làm biến dạng.
+  - `the stepper moves one centimetre and shows the current value` — 90 → 91.
+  - `the deviation report sits below the 3D viewer as a small report` — so sánh trực tiếp vị trí `getBoundingClientRect` của `.scan-accuracy` với `.scan-workspace`.
+  - `the preview is handed over to the rebuilt model` — trạng thái chuyển về `Đã khớp`.
+  - `the onboarding settles after a reset (no remount churn)`.
+- Ảnh: `manual-live-preview.png` (trạng thái đang xem trước).
+
+### 8.5 Lưu ý khi chạy harness
+
+Kéo thanh trượt phát sự kiện nhanh hơn nhịp debounce 700 ms, nên harness **không được lấy mẫu chậm hơn 700 ms một lần**, nếu không sẽ có commit lọt vào giữa phép đo và số đọc thành vô nghĩa. Vì vậy có thêm `canvasInkFast()` (thu nhỏ canvas rồi đếm) và mọi phép so sánh dùng nó trong lúc kéo. Ngoài ra `page.waitForFunction(fn, arg, options)` — options là **đối số thứ ba**.

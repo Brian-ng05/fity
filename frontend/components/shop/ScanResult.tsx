@@ -19,6 +19,12 @@ import {
 import type { Job, MeasurementDetail } from "../../lib/useBodyScan";
 import type { Product } from "../../lib/catalog";
 import type { SizeAdviceResult } from "../../lib/ScanContext";
+import type { ManualInput } from "../../lib/useBodyScan";
+import type { ReferenceSet } from "../../lib/measurementCompare";
+import type { PreviewValues } from "../../lib/bodyPreview";
+import type { PreviewState } from "../BodyViewer";
+import MeasurementAccuracy from "./MeasurementAccuracy";
+import MeasurementAdjust from "./MeasurementAdjust";
 
 const Viewer = dynamic(() => import("../BodyViewer"), {
   ssr: false,
@@ -62,6 +68,11 @@ export default function ScanResult({
   onOpenSizeChart,
   onResetFullBody,
   onEdit,
+  reference,
+  preview,
+  onPreview,
+  onAdjust,
+  rebuilding,
 }: {
   job: Job;
   active: boolean;
@@ -76,6 +87,11 @@ export default function ScanResult({
   onOpenSizeChart?: () => void;
   onResetFullBody?: () => void;
   onEdit?: () => void;
+  reference?: ReferenceSet | null;
+  preview?: PreviewState | null;
+  onPreview?: (values: PreviewValues) => void;
+  onAdjust?: (values: ManualInput) => void;
+  rebuilding?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [rotate, setRotate] = useState(false);
@@ -139,7 +155,7 @@ export default function ScanResult({
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = "morph-body.png";
+          a.download = "fity-body.png";
           a.click();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
@@ -292,6 +308,21 @@ export default function ScanResult({
         </div>
       </section>
 
+      {/* The live controls sit above the viewer they drive; the deviation report is kept
+          below it as a small report. */}
+      {onAdjust && onPreview && (
+        <section className="scan-eval" aria-label="Chỉnh số đo">
+          <MeasurementAdjust
+            job={job}
+            reference={reference ?? null}
+            onPreview={onPreview}
+            onCommit={onAdjust}
+            rebuilding={Boolean(rebuilding)}
+            error={error}
+          />
+        </section>
+      )}
+
       {/* 3D Workspace */}
       <div className="scan-workspace">
         <aside className="scan-measure-list" aria-label="Danh sách số đo">
@@ -342,7 +373,7 @@ export default function ScanResult({
         <div className="scan-stage">
           <div className="scan-stage-label">
             <b>
-              MORPH<span> STUDIO</span>
+              FITY<span> STUDIO</span>
             </b>
             <small>Mô hình ước lượng · tương tác 3D</small>
           </div>
@@ -388,12 +419,16 @@ export default function ScanResult({
                 annotations={rows}
                 selectedMeasurement={selected}
                 onSelectView={() => setRotate(false)}
+                preview={preview ?? null}
               />
             </Boundary>
           )}
           <p className="scan-stage-help">Kéo để xoay · Cuộn hoặc chụm để phóng to</p>
         </div>
       </div>
+
+      {/* The deviation report, kept below the viewer as a small report. */}
+      <MeasurementAccuracy job={job} reference={reference ?? null} unit={unit} />
 
       {/* Collapsible Technical Details & Data Export */}
       <details className="scan-technical-details">

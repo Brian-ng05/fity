@@ -1,1 +1,1 @@
-"""MORPH AI local demo backend."""
+"""FITY AI local demo backend."""

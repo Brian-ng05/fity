@@ -433,7 +433,7 @@ export default function CheckoutPage() {
                   </p>
                   <p className="disclaimer-sub">
                     Quý khách không cần thanh toán ngay tại trang web. Sau khi gửi đơn, chuyên viên
-                    tư vấn của MORPH Studio sẽ gọi điện hoặc gửi tin nhắn SMS để xác nhận lại số đo
+                    tư vấn của FITY Studio sẽ gọi điện hoặc gửi tin nhắn SMS để xác nhận lại số đo
                     hình thể, kiểm tra size trang phục và hẹn lịch giao hàng (thanh toán khi nhận hàng - COD).
                   </p>
                 </div>
