@@ -9,29 +9,46 @@ import CaptureSession from "./CaptureSession";
 
 export default function FitExperience({
   product,
-  onSelectSize,
   active,
+  onSelectSize,
+  onOpenSizeChart,
+  onClose,
 }: {
   product: Product;
-  onSelectSize: (size: string) => void;
   active: boolean;
+  onSelectSize: (size: string) => void;
+  onOpenSizeChart?: () => void;
+  onClose?: () => void;
 }) {
   const scanContext = useScan();
-  const s = useBodyScan();
+  const s = useBodyScan(scanContext.job);
   const [capturing, setCapturing] = useState(false);
   const [advice, setAdvice] = useState<SizeAdviceResult | null>(null);
   const [adviceError, setAdviceError] = useState("");
   const [retry, setRetry] = useState(0);
 
-  // Sync active job between local hook and shared ScanContext
-  const currentJob: Job | null = s.job || scanContext.job;
-
-  // Whenever local hook gets a completed job, store it in scanContext
+  // Sync active job from local hook to shared ScanContext
   useEffect(() => {
-    if (s.job && s.job.status === "completed") {
+    if (s.job) {
       scanContext.setJob(s.job);
     }
   }, [s.job, scanContext]);
+
+  // Populate local hook with shared ScanContext job if available and not yet loaded
+  useEffect(() => {
+    if (scanContext.job && !s.job) {
+      s.setJob(scanContext.job);
+    }
+  }, [scanContext.job, s.job, s.setJob]);
+
+  useEffect(() => {
+    if (scanContext.jobError) {
+      s.setError(scanContext.jobError);
+    }
+  }, [scanContext.jobError, s.setError]);
+
+  const currentJob: Job | null = s.job || scanContext.job;
+  const isBusy = s.busy || currentJob?.status === "queued" || currentJob?.status === "processing";
 
   useEffect(() => {
     if (!active) setCapturing(false);
@@ -49,12 +66,18 @@ export default function FitExperience({
       .fetchAdviceForProduct(product, currentJob)
       .then((data) => {
         if (!aborted) {
-          setAdvice(data);
+          if (data.status === "error") {
+            setAdviceError(data.message);
+            setAdvice(null);
+          } else {
+            setAdvice(data);
+          }
         }
       })
       .catch((err) => {
         if (!aborted) {
           setAdviceError(err?.message || "Chưa đối chiếu được bảng size.");
+          setAdvice(null);
         }
       });
 
@@ -66,6 +89,13 @@ export default function FitExperience({
   const handleReset = useCallback(async () => {
     await s.clear();
     await scanContext.clearScanSession();
+  }, [s, scanContext]);
+
+  const handleResetFullBody = useCallback(async () => {
+    await s.clear();
+    await scanContext.clearScanSession();
+    s.setCaptureMode("full_body");
+    setCapturing(false);
   }, [s, scanContext]);
 
   const renderProductContextBar = () => {
@@ -94,12 +124,14 @@ export default function FitExperience({
           job={currentJob}
           active={active}
           onReset={handleReset}
+          onResetFullBody={handleResetFullBody}
           deleting={s.deleting}
           onSelectSize={onSelectSize}
+          onOpenSizeChart={onOpenSizeChart}
           advice={advice}
           adviceError={adviceError}
           onRetry={() => setRetry((n) => n + 1)}
-          error={s.error}
+          error={s.error || scanContext.jobError}
           product={product}
         />
       </div>
@@ -124,7 +156,7 @@ export default function FitExperience({
     );
   }
 
-  if (s.busy) {
+  if (isBusy) {
     return (
       <div className="fit-experience">
         {renderProductContextBar()}
@@ -134,7 +166,7 @@ export default function FitExperience({
             <LoaderCircle size={72} className="spin" />
           </div>
           <h2>Đang dựng hình thể của bạn</h2>
-          <p>{s.job?.stage || "Đang gửi hai góc chụp…"}</p>
+          <p>{currentJob?.stage || s.job?.stage || scanContext.job?.stage || "Đang gửi hai góc chụp…"}</p>
           <div>
             <span>
               <Check size={16} /> Chính diện
@@ -146,13 +178,15 @@ export default function FitExperience({
           <p className="scan-processing-note">
             Bạn đã có thể rời camera. Kết quả sẽ hiện ngay tại đây.
           </p>
-          {s.error && (
+          {(s.error || scanContext.jobError) && (
             <div role="alert" style={{ marginTop: 16 }}>
-              <p>{s.error}</p>
+              <p>{s.error || scanContext.jobError}</p>
               <button
                 className="shop-secondary"
+                type="button"
                 onClick={() => {
                   s.setError("");
+                  scanContext.setJobError("");
                   s.setPollRetry((n) => n + 1);
                 }}
               >
@@ -263,9 +297,11 @@ export default function FitExperience({
           </label>
           <button
             className="shop-primary scan-start"
+            type="button"
             disabled={!s.consent || !validHeight || !s.health?.ready || s.deleting}
             onClick={() => {
               s.setError("");
+              scanContext.setJobError("");
               setCapturing(true);
             }}
           >
@@ -277,15 +313,15 @@ export default function FitExperience({
             <p className="scan-service" role="status">
               {s.health ? "Dịch vụ scan chưa kết nối." : "Đang kết nối dịch vụ scan…"}
               {s.health && (
-                <button className="shop-inline" onClick={s.checkHealth}>
+                <button className="shop-inline" type="button" onClick={s.checkHealth}>
                   Thử kết nối lại
                 </button>
               )}
             </p>
           )}
-          {s.error && (
+          {(s.error || scanContext.jobError) && (
             <p className="fit-error" role="alert">
-              {s.error}
+              {s.error || scanContext.jobError}
             </p>
           )}
           <div className="scan-privacy">

@@ -23,7 +23,7 @@ export default function SizeChartModal({
         <h2>Thông số số đo cơ thể chuẩn</h2>
         <p>
           Bảng size tính theo khoảng <strong>số đo cơ thể (cm)</strong>, không phải kích thước trang phục trải phẳng.
-          Đo sát cơ thể khi mặc đồ ôm nhẹ để có kết quả chính xác nhất.
+          Đo sát cơ thể khi mặc đồ ôm nhẹ để đối chiếu kích cỡ phù hợp.
         </p>
 
         <table className="shop-size-table">

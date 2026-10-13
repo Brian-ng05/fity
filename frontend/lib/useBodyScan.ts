@@ -7,7 +7,7 @@ type BodyProfile = { capture_mode?:string; measurement_details?:MeasurementDetai
 export type Job = { id: string; status: "queued" | "processing" | "completed" | "failed"; stage: string; error?: string; model_url?: string; warnings?: string[]; measurements?: Measurements; body_profile?: BodyProfile; elapsed_seconds?: number };
 type Slot = "front" | "side";
 
-export function useBodyScan() {
+export function useBodyScan(initialJob?: Job | null) {
   const [captureMode,setCaptureMode]=useState<"upper_body"|"full_body">("upper_body");
   const [front, setFront] = useState<File | null>(null);
   const [side, setSide] = useState<File | null>(null);
@@ -15,7 +15,7 @@ export function useBodyScan() {
   const [consent, setConsent] = useState(false);
   const [health, setHealth] = useState<Health | null>(null);
   const [error, setError] = useState("");
-  const [job, setJob] = useState<Job | null>(null);
+  const [job, setJob] = useState<Job | null>(initialJob || null);
   const [submitting, setSubmitting] = useState(false);
   const [camera, setCamera] = useState<Slot | null>(null);
   const [wireframe, setWireframe] = useState(false);
@@ -43,7 +43,7 @@ export function useBodyScan() {
       try {
         const r = await fetch(`/api/scans/${job!.id}`);
         if (r.status === 404) {
-          if (alive) { setJob(null); setError("Phiên đã hết hạn hoặc backend đã khởi động lại. Hãy tạo mô hình mới."); }
+          if (alive) { setJob(null); setError("Phiên đã hết hạn hoặc máy chủ đã khởi động lại. Vui lòng quét lại."); }
           return;
         }
         if (!r.ok) throw new Error("Không đọc được trạng thái scan.");
@@ -105,5 +105,5 @@ export function useBodyScan() {
     finally { setDeleting(false); }
   }
 
-  return {captureMode,setCaptureMode,front,side,height,setHeight,consent,setConsent,health,error,setError,job,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,clear,checkHealth};
+  return {captureMode,setCaptureMode,front,side,height,setHeight,consent,setConsent,health,error,setError,job,setJob,camera,setCamera,wireframe,setWireframe,rotation,setRotation,showRings,setShowRings,reset,setReset,privacy,setPrivacy,deleting,setPollRetry,viewport,busy,complete,choose,scan,clear,checkHealth};
 }

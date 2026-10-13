@@ -13,6 +13,7 @@ import {
   Tag,
 } from "lucide-react";
 import { CATEGORIES } from "../../lib/catalog";
+import { useDrawerA11y } from "../../lib/useDrawerA11y";
 
 export interface FilterState {
   q: string;
@@ -61,7 +62,10 @@ export default function ProductFilter({
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileFilterPanelRef = useRef<HTMLDivElement>(null);
   const [, startTransition] = useTransition();
+
+  useDrawerA11y(mobileDrawerOpen, () => setMobileDrawerOpen(false), mobileFilterPanelRef);
 
   const hasActiveFilters =
     Boolean(filters.q) ||
@@ -423,19 +427,26 @@ export default function ProductFilter({
 
       {/* Mobile Drawer Modal */}
       {mobileDrawerOpen && (
-        <div className="filter-drawer-backdrop" onClick={() => setMobileDrawerOpen(false)}>
+        <div
+          className="filter-drawer-backdrop"
+          onClick={() => setMobileDrawerOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bộ lọc tìm kiếm sản phẩm"
+        >
           <div
+            ref={mobileFilterPanelRef}
+            tabIndex={-1}
             className="filter-drawer-panel"
             onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Bộ lọc tìm kiếm sản phẩm"
           >
             <div className="filter-drawer-header">
               <h3>
                 <Filter size={18} /> Bộ lọc sản phẩm
               </h3>
               <button
-                className="shop-icon"
+                type="button"
+                className="shop-icon drawer-close-btn"
                 onClick={() => setMobileDrawerOpen(false)}
                 aria-label="Đóng bộ lọc"
               >

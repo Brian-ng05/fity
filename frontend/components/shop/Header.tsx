@@ -2,19 +2,93 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useRef, Suspense } from "react";
 import { Heart, Search, ShoppingBag, Menu, X, ArrowRight, Sparkles } from "lucide-react";
 import { useCart } from "../../lib/CartContext";
 import { CATEGORIES } from "../../lib/catalog";
+import { useDrawerA11y } from "../../lib/useDrawerA11y";
 
-export default function Header() {
+function HeaderFallback() {
+  return (
+    <>
+      <div className="shop-announcement">
+        <span className="announcement-brand">MORPH STUDIO</span>
+        <span className="announcement-divider">·</span>
+        <span>Mô phỏng hình thể 3D & gợi ý size</span>
+        <span className="announcement-divider">·</span>
+        <span>Ước lượng hình thể tham khảo qua 2 góc chụp webcam</span>
+      </div>
+
+      <header className="shop-header">
+        <button
+          className="mobile-nav-toggle shop-icon"
+          aria-label="Mở menu"
+        >
+          <Menu size={22} />
+        </button>
+
+        <Link href="/" className="shop-logo" aria-label="MORPH Studio trang chủ">
+          MORPH<span>STUDIO</span>
+        </Link>
+
+        <nav aria-label="Danh mục sản phẩm" className="desktop-nav">
+          <Link href="/" className="active">
+            Tất cả
+          </Link>
+          {CATEGORIES.map((cat) => (
+            <Link
+              key={cat.key}
+              href={`/?category=${cat.key}#catalog`}
+            >
+              {cat.name}
+            </Link>
+          ))}
+          <Link href="/scan" className="nav-scan-link">
+            <Sparkles size={13} />
+            <span>Phòng thử 3D</span>
+          </Link>
+        </nav>
+
+        <div className="header-actions">
+          <button
+            className="shop-icon header-search-btn"
+            aria-label="Tìm kiếm sản phẩm"
+          >
+            <Search size={20} />
+          </button>
+
+          <button
+            className="shop-icon header-wishlist-btn"
+            aria-label="Sản phẩm yêu thích"
+          >
+            <Heart size={20} />
+          </button>
+
+          <Link
+            href="/cart"
+            className="shop-bag"
+            aria-label="Xem giỏ hàng"
+          >
+            <ShoppingBag size={20} />
+            <span>Giỏ hàng</span>
+          </Link>
+        </div>
+      </header>
+    </>
+  );
+}
+
+function HeaderContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { totalQuantity, setIsCartOpen, wishlist, setIsWishlistOpen } = useCart();
+  const { totalQuantity, wishlist, setIsWishlistOpen } = useCart();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+  useDrawerA11y(mobileMenuOpen, () => setMobileMenuOpen(false), mobileMenuRef);
 
   const currentCategory = searchParams?.get("category") || "";
 
@@ -29,11 +103,11 @@ export default function Header() {
   return (
     <>
       <div className="shop-announcement">
-        <span className="announcement-brand">MORPH STUDIO ATELIER</span>
+        <span className="announcement-brand">MORPH STUDIO</span>
         <span className="announcement-divider">·</span>
-        <span>MIỄN PHÍ VẬN CHUYỂN ĐƠN TỪ 500.000₫</span>
+        <span>Mô phỏng hình thể 3D & gợi ý size</span>
         <span className="announcement-divider">·</span>
-        <span>CÔNG NGHỆ MAY ĐO & TƯ VẤN SIZE 3D ĐỘC QUYỀN</span>
+        <span>Ước lượng hình thể tham khảo qua 2 góc chụp webcam</span>
       </div>
 
       <header className="shop-header">
@@ -117,22 +191,33 @@ export default function Header() {
             {wishlist.length > 0 && <span className="action-badge">{wishlist.length}</span>}
           </button>
 
-          <button
+          <Link
+            href="/cart"
             className="shop-bag"
-            aria-label={`Mở giỏ hàng, ${totalQuantity} sản phẩm`}
-            onClick={() => setIsCartOpen(true)}
+            aria-label={`Xem giỏ hàng, ${totalQuantity} sản phẩm`}
           >
             <ShoppingBag size={20} />
             <span>Giỏ hàng</span>
             <b>{totalQuantity}</b>
-          </button>
+          </Link>
         </div>
       </header>
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="mobile-menu-backdrop" onClick={() => setMobileMenuOpen(false)}>
-          <div className="mobile-menu-content" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="mobile-menu-backdrop"
+          onClick={() => setMobileMenuOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Menu điều hướng"
+        >
+          <div
+            ref={mobileMenuRef}
+            tabIndex={-1}
+            className="mobile-menu-content"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mobile-menu-header">
               <span className="shop-logo">
                 MORPH<span>STUDIO</span>
@@ -163,6 +248,13 @@ export default function Header() {
                   {cat.name}
                 </Link>
               ))}
+              <Link
+                href="/cart"
+                onClick={() => setMobileMenuOpen(false)}
+                className={pathname === "/cart" ? "active" : ""}
+              >
+                Giỏ hàng ({totalQuantity})
+              </Link>
               <div className="mobile-menu-divider" />
               <Link href="/scan" onClick={() => setMobileMenuOpen(false)}>
                 Công cụ scan 3D độc lập <ArrowRight size={15} />
@@ -172,5 +264,13 @@ export default function Header() {
         </div>
       )}
     </>
+  );
+}
+
+export default function Header() {
+  return (
+    <Suspense fallback={<HeaderFallback />}>
+      <HeaderContent />
+    </Suspense>
   );
 }

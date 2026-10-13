@@ -1,23 +1,34 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { useRef } from "react";
+import { ArrowLeft, ArrowRight, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useCart } from "../../lib/CartContext";
 import { money } from "../../lib/catalog";
+import { useDrawerA11y } from "../../lib/useDrawerA11y";
 
 export default function CartDrawer() {
   const { cart, updateQuantity, removeFromCart, totalQuantity, subtotal, isCartOpen, setIsCartOpen } =
     useCart();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useDrawerA11y(isCartOpen, () => setIsCartOpen(false), panelRef);
 
   if (!isCartOpen) return null;
 
   return (
-    <div className="cart-drawer-backdrop" onClick={() => setIsCartOpen(false)}>
+    <div
+      className="cart-drawer-backdrop"
+      onClick={() => setIsCartOpen(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Giỏ hàng demo"
+    >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className="cart-drawer-panel"
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Giỏ hàng demo"
       >
         <div className="cart-drawer-header">
           <div className="cart-title-row">
@@ -26,7 +37,8 @@ export default function CartDrawer() {
             <span className="cart-count-badge">({totalQuantity})</span>
           </div>
           <button
-            className="shop-icon"
+            type="button"
+            className="shop-icon drawer-close-btn"
             onClick={() => setIsCartOpen(false)}
             aria-label="Đóng Giỏ hàng"
           >
@@ -125,13 +137,25 @@ export default function CartDrawer() {
               </p>
             </div>
 
-            <button
-              className="shop-secondary continue-shopping-btn"
-              onClick={() => setIsCartOpen(false)}
-            >
-              <ArrowLeft size={16} />
-              Tiếp tục chọn đồ
-            </button>
+            <div className="cart-drawer-actions">
+              <Link
+                href="/cart"
+                className="shop-primary view-cart-page-btn"
+                onClick={() => setIsCartOpen(false)}
+              >
+                Xem trang giỏ hàng
+                <ArrowRight size={16} />
+              </Link>
+
+              <button
+                type="button"
+                className="shop-secondary continue-shopping-btn"
+                onClick={() => setIsCartOpen(false)}
+              >
+                <ArrowLeft size={16} />
+                Tiếp tục chọn đồ
+              </button>
+            </div>
           </div>
         )}
       </div>

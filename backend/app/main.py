@@ -13,12 +13,12 @@ import numpy as np
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
-
 from .config import DATA, MAX_UPLOAD, RESULT_TTL_SECONDS
 from .images import InvalidPhoto, decode_photo
 from .reconstruction import ENGINE, capture_feedback, close_detector, readiness, reconstruct
 from .sizing import SizeChart, recommend_size
 from .catalog import router as catalog_router
+from .orders import init_db as init_orders_db, router as orders_router
 
 logger = logging.getLogger(__name__)
 lock = threading.RLock()
@@ -66,6 +66,7 @@ async def lifespan(app):
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="morph-scan")
     DATA.mkdir(exist_ok=True, parents=True)
     cleanup()
+    init_orders_db()
 
     async def janitor():
         while True:
@@ -81,6 +82,7 @@ async def lifespan(app):
 
 app = FastAPI(title="MORPH AI Demo", version="0.1.0", lifespan=lifespan)
 app.include_router(catalog_router)
+app.include_router(orders_router)
 
 
 @app.get("/api/health")

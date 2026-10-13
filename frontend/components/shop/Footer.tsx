@@ -48,7 +48,7 @@ export default function Footer() {
               <span className="footer-dim">Đối chiếu bảng size động</span>
             </li>
             <li>
-              <span className="footer-dim">Không lưu trữ ảnh riêng tư</span>
+              <span className="footer-dim">Không lưu hồ sơ ảnh cá nhân</span>
             </li>
           </ul>
         </div>

@@ -57,6 +57,8 @@ export default function ScanResult({
   onRetry,
   error,
   product,
+  onOpenSizeChart,
+  onResetFullBody,
 }: {
   job: Job;
   active: boolean;
@@ -68,6 +70,8 @@ export default function ScanResult({
   onRetry: () => void;
   error: string;
   product?: Product;
+  onOpenSizeChart?: () => void;
+  onResetFullBody?: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const [rotate, setRotate] = useState(false);
@@ -120,14 +124,14 @@ export default function ScanResult({
       canvas.toBlob((blob) => {
         if (!blob) {
           setNotice("Không xuất được ảnh 3D.");
-          return;
+        } else {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "morph-body.png";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
         }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "morph-body.png";
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
       }, "image/png")
     );
   }
@@ -144,11 +148,11 @@ export default function ScanResult({
           </p>
         </div>
         <div className="scan-header-actions">
-          <button className="scan-btn-subtle" onClick={onReset} disabled={deleting}>
+          <button className="scan-btn-subtle" type="button" onClick={onReset} disabled={deleting}>
             <RotateCcw size={15} />
             {deleting ? "Đang xóa…" : "Quét lại"}
           </button>
-          <button className="scan-btn-subtle" onClick={fullscreen}>
+          <button className="scan-btn-subtle" type="button" onClick={fullscreen}>
             <Expand size={15} />
             Toàn màn hình
           </button>
@@ -178,9 +182,16 @@ export default function ScanResult({
           {adviceError ? (
             <div className="scan-advice-nomatch">
               <p role="alert">{adviceError}</p>
-              <button className="scan-btn-subtle" onClick={onRetry}>
-                Thử lại
-              </button>
+              <div className="scan-advice-actions" style={{ marginTop: 8 }}>
+                <button className="scan-btn-subtle" type="button" onClick={onRetry}>
+                  Thử lại
+                </button>
+                {onOpenSizeChart && (
+                  <button className="scan-btn-subtle" type="button" onClick={onOpenSizeChart}>
+                    Xem bảng size & chọn thủ công
+                  </button>
+                )}
+              </div>
             </div>
           ) : !advice ? (
             <p role="status">Đang đối chiếu size…</p>
@@ -195,10 +206,29 @@ export default function ScanResult({
                 lượng ngực và eo từ ảnh; không quan sát vòng mông thực tế.
               </p>
               <div className="scan-advice-actions">
-                <button className="scan-btn-subtle" onClick={() => onSelectSize("")}>
+                <button
+                  className="scan-btn-subtle"
+                  type="button"
+                  onClick={() => {
+                    if (onOpenSizeChart) {
+                      onOpenSizeChart();
+                    }
+                  }}
+                >
                   Xem bảng size & chọn thủ công
                 </button>
-                <button className="scan-btn-subtle" onClick={onReset}>
+                <button
+                  className="scan-btn-subtle"
+                  type="button"
+                  onClick={() => {
+                    if (onResetFullBody) {
+                      onResetFullBody();
+                    } else {
+                      onReset();
+                    }
+                  }}
+                  disabled={deleting}
+                >
                   Quét lại toàn thân
                 </button>
               </div>
@@ -211,6 +241,7 @@ export default function ScanResult({
               {advice.candidates.map((size) => (
                 <button
                   key={size}
+                  type="button"
                   className="scan-size-apply-btn"
                   onClick={() => onSelectSize(size)}
                 >
@@ -221,6 +252,13 @@ export default function ScanResult({
           ) : (
             <div className="scan-advice-nomatch">
               <p>Không có size nào khớp tất cả số đo trong bảng. Bạn hãy xem bảng size hoặc chọn size thủ công.</p>
+              {onOpenSizeChart && (
+                <div className="scan-advice-actions" style={{ marginTop: 8 }}>
+                  <button className="scan-btn-subtle" type="button" onClick={onOpenSizeChart}>
+                    Xem bảng size & chọn thủ công
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -235,7 +273,7 @@ export default function ScanResult({
             </strong>
             <div className="scan-units" aria-label="Đơn vị">
               {["cm", "in"].map((u) => (
-                <button key={u} onClick={() => setUnit(u)} aria-pressed={unit === u}>
+                <button key={u} type="button" onClick={() => setUnit(u)} aria-pressed={unit === u}>
                   {u}
                 </button>
               ))}
@@ -246,6 +284,7 @@ export default function ScanResult({
             {rows.map((m) => (
               <button
                 key={m.key}
+                type="button"
                 className={selected === m.key ? "selected" : ""}
                 onClick={() => {
                   setSelected(selected === m.key ? "" : m.key);
@@ -277,11 +316,12 @@ export default function ScanResult({
             <small>Mô hình ước lượng · tương tác 3D</small>
           </div>
           <div className="scan-tools">
-            <button aria-pressed={rotate} onClick={() => setRotate(!rotate)}>
+            <button type="button" aria-pressed={rotate} onClick={() => setRotate(!rotate)}>
               <Rotate3D size={15} />
               {rotate ? "Dừng xoay" : "Tự xoay"}
             </button>
             <button
+              type="button"
               onClick={() => {
                 setReset((n) => n + 1);
                 setRotate(false);
@@ -290,11 +330,14 @@ export default function ScanResult({
               <RotateCcw size={15} />
               Đặt lại
             </button>
-            <button aria-pressed={rings} onClick={() => setRings(!rings)}>
+            <button type="button" aria-pressed={rings} onClick={() => setRings(!rings)}>
               <Ruler size={15} />
               Đường đo
             </button>
-            <button onClick={() => setMode(mode === "solid" ? "points" : mode === "points" ? "wire" : "solid")}>
+            <button
+              type="button"
+              onClick={() => setMode(mode === "solid" ? "points" : mode === "points" ? "wire" : "solid")}
+            >
               <Box size={15} />
               {mode === "solid" ? "Khối đặc" : mode === "points" ? "Điểm 3D" : "Khung lưới"}
             </button>
@@ -349,11 +392,11 @@ export default function ScanResult({
               <Download size={15} />
               Tải báo cáo JSON
             </a>
-            <button onClick={copy} className="scan-btn-subtle">
+            <button type="button" onClick={copy} className="scan-btn-subtle">
               <Copy size={15} />
               Sao chép JSON
             </button>
-            <button onClick={snapshot} className="scan-btn-subtle">
+            <button type="button" onClick={snapshot} className="scan-btn-subtle">
               <ImageIcon size={15} />
               Xuất ảnh PNG
             </button>

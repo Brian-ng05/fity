@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect } from "react";
 import type { Job } from "./useBodyScan";
 import type { Product } from "./catalog";
 
@@ -12,9 +12,11 @@ export interface SizeAdviceResult {
   chart_name?: string;
 }
 
-interface ScanContextValue {
+export interface ScanContextValue {
   job: Job | null;
   setJob: (job: Job | null) => void;
+  jobError: string;
+  setJobError: (err: string) => void;
   adviceCache: Record<string, SizeAdviceResult>;
   fetchAdviceForProduct: (product: Product, currentJob?: Job | null) => Promise<SizeAdviceResult>;
   clearScanSession: () => Promise<void>;
@@ -91,6 +93,7 @@ export function computeClientSizeAdvice(
 
 export function ScanProvider({ children }: { children: React.ReactNode }) {
   const [job, setJobState] = useState<Job | null>(null);
+  const [jobError, setJobError] = useState<string>("");
   const [adviceCache, setAdviceCache] = useState<Record<string, SizeAdviceResult>>({});
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [activeScanProduct, setActiveScanProduct] = useState<Product | null>(null);
@@ -104,6 +107,55 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Shared job polling: Maintain active job polling in ScanContext across modal open/close
+  useEffect(() => {
+    if (!job || !["queued", "processing"].includes(job.status)) return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    let failures = 0;
+
+    async function poll() {
+      try {
+        const r = await fetch(`/api/scans/${job!.id}`);
+        if (r.status === 404) {
+          if (alive) {
+            setJobState(null);
+            setAdviceCache({});
+            setJobError("Phiên đã hết hạn hoặc máy chủ đã khởi động lại. Vui lòng quét lại.");
+          }
+          return;
+        }
+        if (!r.ok) throw new Error("Không đọc được trạng thái scan.");
+        const data: Job = await r.json();
+        if (!alive) return;
+        failures = 0;
+        setJobState(data);
+        if (data.status === "failed") {
+          setJobError(data.error || "Chưa dựng được hình. Hãy thử ảnh khác.");
+        } else if (data.status === "completed") {
+          setJobError("");
+        }
+        if (["queued", "processing"].includes(data.status)) {
+          timer = setTimeout(poll, 1200);
+        }
+      } catch {
+        if (!alive) return;
+        failures += 1;
+        if (failures < 5) {
+          timer = setTimeout(poll, 2000);
+        } else {
+          setJobError("Mất kết nối backend. Kết quả có thể vẫn đang xử lý; kiểm tra backend rồi thử lại.");
+        }
+      }
+    }
+
+    timer = setTimeout(poll, 500);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [job?.id, job?.status]);
+
   const clearScanSession = useCallback(async () => {
     if (job?.id) {
       try {
@@ -114,6 +166,7 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
     }
     setJobState(null);
     setAdviceCache({});
+    setJobError("");
   }, [job?.id]);
 
   const fetchAdviceForProduct = useCallback(
@@ -127,9 +180,10 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
         };
       }
 
-      // Check cache first
-      if (adviceCache[product.id]) {
-        return adviceCache[product.id];
+      // Composite cache key
+      const cacheKey = `${activeJob.id}:${product.id}:${product.chart.name}:${product.chart.rows.length}`;
+      if (adviceCache[cacheKey]) {
+        return adviceCache[cacheKey];
       }
 
       try {
@@ -139,6 +193,14 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify(product.chart),
         });
 
+        if (res.status === 404) {
+          setJobState(null);
+          setAdviceCache({});
+          const expiredMsg = "Phiên đã hết hạn hoặc máy chủ đã khởi động lại. Vui lòng quét lại.";
+          setJobError(expiredMsg);
+          throw new Error(expiredMsg);
+        }
+
         if (res.ok) {
           const data = (await res.json()) as SizeAdviceResult;
           if (
@@ -147,19 +209,23 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
           ) {
             data.message = "Chưa đủ dữ liệu để gợi ý (cần số đo vòng mông)";
           }
-          setAdviceCache((prev) => ({ ...prev, [product.id]: data }));
+          setAdviceCache((prev) => ({ ...prev, [cacheKey]: data }));
           return data;
         }
 
-        // Backend returned error status code: fallback to client calculation
-        const fallback = computeClientSizeAdvice(activeJob.measurements || {}, product.chart);
-        setAdviceCache((prev) => ({ ...prev, [product.id]: fallback }));
-        return fallback;
-      } catch {
-        // Backend offline / network error: fallback to client calculation
-        const fallback = computeClientSizeAdvice(activeJob.measurements || {}, product.chart);
-        setAdviceCache((prev) => ({ ...prev, [product.id]: fallback }));
-        return fallback;
+        let detailMsg = "Không thể lấy gợi ý size từ máy chủ.";
+        try {
+          const errData = await res.json();
+          if (errData?.detail && typeof errData.detail === "string") {
+            detailMsg = errData.detail;
+          }
+        } catch {}
+        throw new Error(detailMsg);
+      } catch (err) {
+        if (err instanceof Error && err.message === "Phiên đã hết hạn hoặc máy chủ đã khởi động lại. Vui lòng quét lại.") {
+          throw err;
+        }
+        throw new Error("Lỗi kết nối máy chủ khi đối chiếu size. Vui lòng thử lại.");
       }
     },
     [job, adviceCache]
@@ -183,6 +249,8 @@ export function ScanProvider({ children }: { children: React.ReactNode }) {
       value={{
         job,
         setJob,
+        jobError,
+        setJobError,
         adviceCache,
         fetchAdviceForProduct,
         clearScanSession,

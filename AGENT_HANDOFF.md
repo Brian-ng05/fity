@@ -1,3 +1,5 @@
+> Luồng đặt hàng & Storefront Gold/Ivory mới nhất: ORDER_FLOW_HANDOFF.md (13/10/2026). Bao gồm /cart, /checkout, /orders/[id]?token=..., SQLite DB, và toàn bộ 16 ảnh Playwright verification.
+
 > Flow mới nhất: CAMERA_FLOW_HANDOFF.md — chỉ camera, tự chụp chính diện → xoay 90° → tự chụp nghiêng; không upload hoặc hình nộm trước scan.
 
 > Bản cập nhật mới nhất: đọc UPPER_BODY_HANDOFF.md. Webcam thân trên là mặc định; /scan dùng màn hình kết quả mới, không còn giao diện kỹ thuật cũ.

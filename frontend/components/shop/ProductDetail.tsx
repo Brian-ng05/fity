@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   ShoppingBag,
   Sparkles,
+  X,
 } from "lucide-react";
 import type { Product } from "../../lib/catalog";
 import { getRelatedProducts, money } from "../../lib/catalog";
@@ -23,7 +24,6 @@ import { useScan, type SizeAdviceResult } from "../../lib/ScanContext";
 import Header from "./Header";
 import Footer from "./Footer";
 import ProductCard from "./ProductCard";
-import CartDrawer from "./CartDrawer";
 import WishlistDrawer from "./WishlistDrawer";
 import Modal from "./Modal";
 import SizeChartModal from "./SizeChartModal";
@@ -41,14 +41,33 @@ export default function ProductDetail({ product }: { product: Product }) {
 
   const [selectedColor, setSelectedColor] = useState(product.color || product.colors[0]?.name || "");
   const [selectedSize, setSelectedSize] = useState(() => {
-    return searchParams?.get("size") || appliedSizes[product.id] || "";
+    const qSize = searchParams?.get("size");
+    if (qSize && product.sizes.includes(qSize)) return qSize;
+    const aSize = appliedSizes[product.id];
+    if (aSize && product.sizes.includes(aSize)) return aSize;
+    return "";
   });
   const [selectedImage, setSelectedImage] = useState(product.image);
   const [quantity, setQuantity] = useState(1);
   const [message, setMessage] = useState("");
+  const [addedFeedback, setAddedFeedback] = useState<{
+    productName: string;
+    size: string;
+    color: string;
+    quantity: number;
+  } | null>(null);
 
   const [chartOpen, setChartOpen] = useState(false);
   const [fitOpen, setFitOpen] = useState(false);
+
+  // Auto-dismiss add-to-cart toast after 6 seconds
+  useEffect(() => {
+    if (!addedFeedback) return;
+    const timer = setTimeout(() => {
+      setAddedFeedback(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [addedFeedback]);
 
   // Dynamic size advice from active scan session if available
   const [advice, setAdvice] = useState<SizeAdviceResult | null>(null);
@@ -57,18 +76,39 @@ export default function ProductDetail({ product }: { product: Product }) {
   const favorite = isWishlisted(product.id);
   const relatedProducts = useMemo(() => getRelatedProducts(product.id, 4), [product.id]);
 
-  // Sync size from query param or scan context
+  // Reset selection state when product changes to avoid carrying over wrong attributes
+  useEffect(() => {
+    const qSize = searchParams?.get("size");
+    const validQ = qSize && product.sizes.includes(qSize) ? qSize : "";
+    const validA = appliedSizes[product.id] && product.sizes.includes(appliedSizes[product.id]) ? appliedSizes[product.id] : "";
+
+    setSelectedColor(product.color || product.colors[0]?.name || "");
+    setSelectedSize(validQ || validA || "");
+    setSelectedImage(product.image);
+    setQuantity(1);
+    setMessage("");
+    setAddedFeedback(null);
+    setChartOpen(false);
+    setFitOpen(false);
+  }, [product.id]);
+
+  // Validate URL size parameter: only accept sizes belonging to this product
   useEffect(() => {
     const querySize = searchParams?.get("size");
-    if (querySize && product.sizes.includes(querySize)) {
-      setSelectedSize(querySize);
-      applySizeToProduct(product.id, querySize);
+    if (querySize) {
+      if (product.sizes.includes(querySize)) {
+        setSelectedSize(querySize);
+        applySizeToProduct(product.id, querySize);
+      } else {
+        // Query size is invalid for this product
+        setSelectedSize((prev) => (product.sizes.includes(prev) ? prev : ""));
+      }
     } else if (appliedSizes[product.id] && product.sizes.includes(appliedSizes[product.id])) {
       setSelectedSize(appliedSizes[product.id]);
     }
   }, [searchParams, appliedSizes, product.id, product.sizes, applySizeToProduct]);
 
-  // Fetch advice if scan session is active
+  // Fetch advice if scan session is active (requires explicit user action to select/apply)
   useEffect(() => {
     if (!job || job.status !== "completed") {
       setAdvice(null);
@@ -81,11 +121,11 @@ export default function ProductDetail({ product }: { product: Product }) {
       .then((res) => {
         if (active) {
           setAdvice(res);
-          // If advice provides candidate size and no size selected yet, pre-select it
-          if (res.candidates && res.candidates.length > 0 && !selectedSize) {
-            setSelectedSize(res.candidates[0]);
-            applySizeToProduct(product.id, res.candidates[0]);
-          }
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setAdvice(null);
         }
       })
       .finally(() => {
@@ -95,12 +135,13 @@ export default function ProductDetail({ product }: { product: Product }) {
     return () => {
       active = false;
     };
-  }, [job?.id, job?.status, product.id, fetchAdviceForProduct, product, selectedSize, applySizeToProduct]);
+  }, [job?.id, job?.status, product.id, fetchAdviceForProduct, product]);
 
-  // Handle Add to Cart
+  // Explicit user action to add to cart
   const handleAddToCart = () => {
-    if (!selectedSize) {
-      setMessage("Vui lòng chọn một size trước khi thêm vào giỏ.");
+    if (!selectedSize || !product.sizes.includes(selectedSize)) {
+      setMessage("Vui lòng chọn một size hợp lệ trước khi thêm vào giỏ.");
+      setAddedFeedback(null);
       return;
     }
     setMessage("");
@@ -114,15 +155,34 @@ export default function ProductDetail({ product }: { product: Product }) {
         size: selectedSize,
         image: selectedImage || product.image,
       },
-      quantity
+      quantity,
+      false
     );
+    setAddedFeedback({
+      productName: product.name,
+      size: selectedSize,
+      color: selectedColor,
+      quantity,
+    });
   };
 
   const handleApplySizeFromScan = (sizeToApply: string) => {
-    setSelectedSize(sizeToApply);
-    applySizeToProduct(product.id, sizeToApply);
-    setMessage(`Đã chọn size ${sizeToApply} theo gợi ý hình thể của bạn.`);
+    if (product.sizes.includes(sizeToApply)) {
+      setSelectedSize(sizeToApply);
+      applySizeToProduct(product.id, sizeToApply);
+      setMessage(`Đã chọn size ${sizeToApply} theo gợi ý hình thể của bạn.`);
+    }
     setFitOpen(false);
+  };
+
+  const handleOpenSizeChartFromScan = () => {
+    setFitOpen(false);
+    setChartOpen(true);
+  };
+
+  const handleOpenScanFromChart = () => {
+    setChartOpen(false);
+    setFitOpen(true);
   };
 
   return (
@@ -146,7 +206,7 @@ export default function ProductDetail({ product }: { product: Product }) {
             <div className="product-photo">
               <img
                 src={selectedImage}
-                alt={`${product.name} - ${selectedColor}`}
+                alt={selectedColor === product.color ? `${product.name} - ${product.color}` : `${product.name} (Ảnh minh họa màu gốc: ${product.color})`}
                 width="1122"
                 height="1402"
                 fetchPriority="high"
@@ -169,6 +229,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                 {product.gallery.map((img, idx) => (
                   <button
                     key={idx}
+                    type="button"
                     className={`thumb-btn ${selectedImage === img ? "active" : ""}`}
                     onClick={() => setSelectedImage(img)}
                     aria-label={`Xem ảnh ${idx + 1}`}
@@ -205,6 +266,11 @@ export default function ProductDetail({ product }: { product: Product }) {
               <div className="color-label-row">
                 <span>
                   Màu sắc: <strong>{selectedColor}</strong>
+                  {selectedColor !== product.color && (
+                    <small style={{ color: "var(--text-secondary)", marginLeft: 8, fontSize: "12px" }}>
+                      (Ảnh hiển thị màu gốc: {product.color})
+                    </small>
+                  )}
                 </span>
               </div>
               <div className="color-swatches-group" role="radiogroup" aria-label="Chọn màu sắc">
@@ -262,6 +328,7 @@ export default function ProductDetail({ product }: { product: Product }) {
                       onClick={() => {
                         setSelectedSize(s);
                         setMessage("");
+                        setAddedFeedback(null);
                       }}
                     >
                       {s}
@@ -341,6 +408,22 @@ export default function ProductDetail({ product }: { product: Product }) {
               </button>
             </div>
 
+            {addedFeedback && (
+              <div className="product-added-banner" role="status" aria-live="polite">
+                <div className="banner-left">
+                  <span className="banner-check-circle">
+                    <Check size={16} />
+                  </span>
+                  <span>
+                    Đã thêm <strong>{addedFeedback.productName}</strong> - Size <strong>{addedFeedback.size}</strong> vào giỏ hàng.
+                  </span>
+                </div>
+                <Link href="/cart" className="banner-cart-link">
+                  Xem giỏ hàng →
+                </Link>
+              </div>
+            )}
+
             {message && (
               <p className="product-message" role="alert">
                 {message}
@@ -409,8 +492,35 @@ export default function ProductDetail({ product }: { product: Product }) {
 
       <Footer />
 
-      {/* Cart & Wishlist Drawers */}
-      <CartDrawer />
+      {/* Floating Add to Cart Confirmation Toast */}
+      {addedFeedback && (
+        <aside className="commerce-toast commerce-toast-success" role="status" aria-live="polite">
+          <div className="toast-icon-wrap">
+            <Check size={18} />
+          </div>
+          <div className="toast-body">
+            <p className="toast-title">Đã thêm vào giỏ hàng</p>
+            <p className="toast-desc">
+              Đã thêm <strong>{addedFeedback.productName}</strong> - Size <strong>{addedFeedback.size}</strong> vào giỏ hàng.
+            </p>
+          </div>
+          <div className="toast-actions">
+            <Link href="/cart" className="toast-view-cart-btn">
+              Xem giỏ hàng →
+            </Link>
+            <button
+              type="button"
+              className="toast-close-btn"
+              aria-label="Đóng thông báo"
+              onClick={() => setAddedFeedback(null)}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Wishlist Drawer */}
       <WishlistDrawer />
 
       {/* Size Chart Modal */}
@@ -418,7 +528,7 @@ export default function ProductDetail({ product }: { product: Product }) {
         product={product}
         open={chartOpen}
         onClose={() => setChartOpen(false)}
-        onOpenScan={() => setFitOpen(true)}
+        onOpenScan={handleOpenScanFromChart}
       />
 
       {/* Fit Studio Modal */}
@@ -433,6 +543,8 @@ export default function ProductDetail({ product }: { product: Product }) {
             product={product}
             active={fitOpen}
             onSelectSize={handleApplySizeFromScan}
+            onOpenSizeChart={handleOpenSizeChartFromScan}
+            onClose={() => setFitOpen(false)}
           />
         )}
       </Modal>

@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
 import { Heart, Trash2, X } from "lucide-react";
 import { useCart } from "../../lib/CartContext";
 import { getAllProducts, money } from "../../lib/catalog";
+import { useDrawerA11y } from "../../lib/useDrawerA11y";
 
 export default function WishlistDrawer() {
   const { wishlist, toggleWishlist, isWishlistOpen, setIsWishlistOpen } = useCart();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useDrawerA11y(isWishlistOpen, () => setIsWishlistOpen(false), panelRef);
 
   if (!isWishlistOpen) return null;
 
@@ -14,12 +19,18 @@ export default function WishlistDrawer() {
   const savedProducts = allProducts.filter((p) => wishlist.includes(p.id));
 
   return (
-    <div className="cart-drawer-backdrop" onClick={() => setIsWishlistOpen(false)}>
+    <div
+      className="cart-drawer-backdrop"
+      onClick={() => setIsWishlistOpen(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Danh sách yêu thích"
+    >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         className="cart-drawer-panel"
         onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Danh sách yêu thích"
       >
         <div className="cart-drawer-header">
           <div className="cart-title-row">
@@ -28,7 +39,8 @@ export default function WishlistDrawer() {
             <span className="cart-count-badge">({savedProducts.length})</span>
           </div>
           <button
-            className="shop-icon"
+            type="button"
+            className="shop-icon drawer-close-btn"
             onClick={() => setIsWishlistOpen(false)}
             aria-label="Đóng danh sách yêu thích"
           >

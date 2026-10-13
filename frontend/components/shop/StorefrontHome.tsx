@@ -178,14 +178,14 @@ function StorefrontHomeContent() {
 
           <div className="hero-feature-card">
             <div className="feature-card-eyebrow">
-              <span className="feature-atelier-badge">MORPH ATELIER · 3D FIT LAB</span>
+              <span className="feature-atelier-badge">MORPH STUDIO · 3D FIT LAB</span>
               <span className="feature-status-dot" title="Sẵn sàng kết nối" />
             </div>
             <h3 className="feature-card-heading">
-              May đo kỹ thuật số chuẩn xác qua 2 góc chụp máy ảnh
+              Mô phỏng hình thể 3D & gợi ý size qua 2 góc chụp webcam
             </h3>
             <p className="feature-card-text">
-              Không cần thước dây. AI phân tích hình thể thân trên và tự động đối chiếu với bảng size của từng món đồ, giúp bạn chọn đúng kích cỡ ngay từ lần đầu tiên.
+              Ước lượng hình thể tham khảo qua 2 góc chụp trước và nghiêng từ webcam, tự động đối chiếu với bảng số đo của từng thiết kế mà không cần thước dây.
             </p>
             <div className="feature-card-highlights">
               <div className="highlight-item">
@@ -194,11 +194,11 @@ function StorefrontHomeContent() {
               </div>
               <div className="highlight-item">
                 <span className="highlight-bullet" />
-                <span>Khớp chuẩn số đo với phom dáng từng thiết kế</span>
+                <span>Ước lượng hình thể tham khảo qua 2 góc chụp webcam</span>
               </div>
               <div className="highlight-item">
                 <span className="highlight-bullet" />
-                <span>Bảo mật tuyệt đối · Không lưu trữ hình ảnh cá nhân</span>
+                <span>Không lưu hồ sơ ảnh cá nhân · Dữ liệu phiên tạm thời</span>
               </div>
             </div>
             <button
